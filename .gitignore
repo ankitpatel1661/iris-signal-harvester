@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+reports/*
+!reports/.gitkeep
+.DS_Store
+.superpowers/
+
+# Committed evidence and sample output (review findings C-3 and I-12): these must stay
+# tracked even though reports/ is ignored. The corpus cassettes live under tests/fixtures.
+!docs/samples/
+!docs/samples/**
+!docs/evidence/
+!docs/evidence/**
+!tests/fixtures/cassettes/corpus/
+!tests/fixtures/cassettes/corpus/**
