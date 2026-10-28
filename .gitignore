@@ -1,3 +1,9 @@
+# Build artefacts, virtualenvs and local run output.
+#
+# Note what is deliberately NOT ignored: docs/samples/ and docs/evidence/ are committed
+# on purpose - they are the sample output and the source evidence the assignment asks for.
+# Only ./reports/ (regenerated on every run) is ignored.
+
 __pycache__/
 *.py[cod]
 .venv/

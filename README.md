@@ -12,6 +12,23 @@ fails validation rejects the record; it is never clamped, snapped or replaced by
 
 To see it work: `make demo` (needs Docker and `make`; details under [How to run](#how-to-run)).
 
+### What is where
+
+| Path | What it holds |
+|---|---|
+| **[`src/`](src/)** | The harvester. Adapters, the domain core, transport, the PostGIS sink, reporting and the CLI. |
+| **[`tests/`](tests/)** | 639 tests offline, 705 with a database. Thirteen named failure-scenario cassettes plus the generated corpus. |
+| **[`docs/samples/`](docs/samples/)** | **The sample output the brief asks for** — a staging extract, the quality report, the same run repeated, and a deliberately degraded run that fails. |
+| **[`docs/evidence/`](docs/evidence/)** | Dated capture of the live source, so the facts stated here can be checked. |
+| **[`config/`](config/)** | The taxonomy, document-type vocabulary, gazetteer, source registry and quality thresholds. Domain knowledge, editable without touching code. |
+| **[`sql/`](sql/)** | Validation queries a reviewer can run without reading Python. |
+| **[`migrations/`](migrations/)** | Plain-SQL schema, applied by a checksum-verifying runner. |
+| **[`scripts/`](scripts/)** | The demo's idempotency gate, the corpus generator, the sample regenerator. |
+| **[`ui/`](ui/)** | *Optional extra, not a deliverable* — a read-only dashboard. |
+| [`SOURCE_VERIFICATION.md`](SOURCE_VERIFICATION.md) | What probing the briefed endpoint found, and why this repository harvests a different source. **Read this first.** |
+
+Each directory has its own README explaining what is inside and why.
+
 ## Data source
 
 **The briefed endpoint does not exist.** The brief names `https://ratsdokumente.de/api/search`.

@@ -1,5 +1,9 @@
 # SOURCE_VERIFICATION — IRIS-SIG-23
 
+> **What this file is:** the dated, raw-output record of probing the endpoint named in
+> the assignment, written before any implementation work. It is the evidence behind the data-source
+> section of [README.md](README.md). Regenerate it with `iris-harvest verify-source`.
+
 | | |
 |---|---|
 | Probe executed (UTC) | 2026-10-27 09:28:25Z |
