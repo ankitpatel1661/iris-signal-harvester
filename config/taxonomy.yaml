@@ -1,0 +1,162 @@
+# IRIS signal taxonomy.
+#
+# Terms are written in natural German spelling (umlauts and ß included). The matcher
+# applies the same fold() to this file as to the documents, so spelling variants such as
+# "Wärmeplanung" / "Waermeplanung" are equivalent and need not be listed twice.
+#
+# Per-term keys:
+#   term      canonical spelling, reported verbatim in every Hit
+#   weight    0..1, how strongly this term alone indicates the signal type
+#   compound  true  -> also match when the term is the HEAD of a longer compound
+#                      ("Solarpark" inside "Solarparkerweiterung"; bounded suffix, see
+#                      the taxonomy module docstring)
+#             false -> whole-word match only (the default)
+#
+# Hyphens in a term are optional in the text: "Freiflächen-PV", "Freiflächen PV" and
+# "FreiflächenPV" are one spelling to the matcher.
+#
+# RULE: a compound=true term must never be a bare generic head noun. Write "Solarpark",
+# never "Park"; "Netzanschluss", never "Netz"; "Batteriespeicher", never "Speicher".
+# Suffix matching is only safe because the term itself is already specific. The loader
+# rejects the most common offenders, but it cannot know them all: review additions.
+#
+# The matcher only anchors a term on its LEFT at a word boundary, so a term does not match
+# when it is the tail of a longer compound ("Freiflächensolarpark" is not found by
+# "Solarpark"). List such compounds as terms in their own right.
+
+version: "2026.10.1"
+
+field_weights:
+  title: 1.0
+  summary: 0.6
+  body: 0.4
+
+breadth_bonus: 0.05
+cap: 1.0
+emit_min_score: 0.35
+
+# A hit is suppressed when one of these appears within `window` tokens before or after it.
+# Terms match as token prefixes, so "kein" also covers "keine", "keinen", "keiner".
+negation:
+  window: 4
+  terms:
+    - Ablehnung
+    - abgelehnt
+    - ablehnen
+    - Rückbau
+    - Aufhebung
+    - aufgehoben
+    - Rücknahme
+    - zurückgenommen
+    - kein
+    - Verzicht
+
+signal_types:
+  land_use_plan:
+    terms:
+      - {term: "Flächennutzungsplan", weight: 0.7, compound: true}
+      - {term: "Bebauungsplan", weight: 0.7, compound: true}
+      - {term: "Bauleitplanung", weight: 0.7, compound: true}
+      - {term: "Aufstellungsbeschluss", weight: 0.6, compound: true}
+      - {term: "Vorhaben- und Erschließungsplan", weight: 0.75, compound: false}
+      - {term: "Regionalplan", weight: 0.6, compound: true}
+      - {term: "Sondergebiet", weight: 0.65, compound: true}
+      - {term: "Außenbereich", weight: 0.5, compound: false}
+      - {term: "Städtebaulicher Vertrag", weight: 0.5, compound: false}
+      - {term: "Durchführungsvertrag", weight: 0.45, compound: true}
+
+  wind_energy:
+    terms:
+      - {term: "Windenergie", weight: 0.85, compound: true}
+      - {term: "Windkraft", weight: 0.85, compound: true}
+      - {term: "Windpark", weight: 0.9, compound: true}
+      - {term: "Windrad", weight: 0.8, compound: true}
+      - {term: "Windräder", weight: 0.8, compound: false}
+      - {term: "Windvorranggebiet", weight: 0.9, compound: true}
+      - {term: "Windeignungsgebiet", weight: 0.85, compound: true}
+      - {term: "Repowering", weight: 0.7, compound: true}
+      - {term: "Windkonzentrationszone", weight: 0.85, compound: true}
+      - {term: "Windpotenzialfläche", weight: 0.8, compound: true}
+
+  pv_open_space:
+    terms:
+      - {term: "Solarpark", weight: 0.95, compound: true}
+      - {term: "Solarfeld", weight: 0.85, compound: true}
+      - {term: "Freiflächen-Photovoltaik", weight: 0.95, compound: true}
+      - {term: "Freiflächen-PV", weight: 0.95, compound: true}
+      - {term: "Freiflächen-Solaranlage", weight: 0.9, compound: true}
+      - {term: "Photovoltaik-Freiflächenanlage", weight: 0.95, compound: true}
+      - {term: "Agri-Photovoltaik", weight: 0.85, compound: true}
+      - {term: "Agri-PV", weight: 0.85, compound: true}
+      - {term: "PV-Park", weight: 0.9, compound: true}
+      - {term: "Solarkraftwerk", weight: 0.85, compound: true}
+      - {term: "Photovoltaikanlage", weight: 0.6, compound: true}
+
+  grid_connection:
+    terms:
+      - {term: "Netzanschluss", weight: 0.9, compound: true}
+      - {term: "Netzverknüpfungspunkt", weight: 0.9, compound: true}
+      - {term: "Einspeisezusage", weight: 0.85, compound: true}
+      - {term: "Umspannwerk", weight: 0.9, compound: true}
+      - {term: "Umspannanlage", weight: 0.85, compound: true}
+      - {term: "Schaltanlage", weight: 0.7, compound: true}
+      - {term: "Hochspannungsleitung", weight: 0.7, compound: true}
+      - {term: "Erdkabel", weight: 0.7, compound: true}
+      - {term: "Netzausbau", weight: 0.7, compound: true}
+      - {term: "Trafostation", weight: 0.6, compound: true}
+      - {term: "Netzbetreiber", weight: 0.5, compound: true}
+
+  storage:
+    terms:
+      - {term: "Batteriespeicher", weight: 0.95, compound: true}
+      - {term: "Batteriegroßspeicher", weight: 0.95, compound: true}
+      - {term: "Batterie-Energiespeichersystem", weight: 0.9, compound: true}
+      - {term: "Energiespeicher", weight: 0.85, compound: true}
+      - {term: "Stromspeicher", weight: 0.85, compound: true}
+      - {term: "Pumpspeicher", weight: 0.8, compound: true}
+      - {term: "Wasserstoffspeicher", weight: 0.7, compound: true}
+      - {term: "Power-to-Gas", weight: 0.8, compound: true}
+      - {term: "Elektrolyseur", weight: 0.75, compound: true}
+
+  heat_planning:
+    terms:
+      - {term: "Kommunale Wärmeplanung", weight: 0.95, compound: true}
+      - {term: "Wärmeplan", weight: 0.85, compound: true}
+      - {term: "Wärmenetz", weight: 0.85, compound: true}
+      - {term: "Fernwärme", weight: 0.8, compound: true}
+      - {term: "Nahwärme", weight: 0.8, compound: true}
+      - {term: "Wärmewende", weight: 0.7, compound: true}
+      - {term: "Geothermie", weight: 0.75, compound: true}
+      - {term: "Wärmespeicher", weight: 0.7, compound: true}
+      - {term: "Abwärme", weight: 0.6, compound: true}
+      - {term: "Anschluss- und Benutzungszwang", weight: 0.7, compound: false}
+
+  digital_infra:
+    terms:
+      - {term: "Glasfaser", weight: 0.9, compound: true}
+      - {term: "Breitband", weight: 0.75, compound: true}
+      - {term: "FTTH", weight: 0.9, compound: false}
+      - {term: "Gigabit", weight: 0.7, compound: true}
+      - {term: "Mobilfunkmast", weight: 0.8, compound: true}
+      - {term: "Funkmast", weight: 0.8, compound: true}
+      - {term: "Mobilfunkstandort", weight: 0.8, compound: true}
+      - {term: "Rechenzentrum", weight: 0.9, compound: true}
+      - {term: "Data Center", weight: 0.8, compound: true}
+      - {term: "Leerrohr", weight: 0.7, compound: true}
+
+  transport_civils:
+    terms:
+      - {term: "Straßenbau", weight: 0.8, compound: true}
+      - {term: "Straßenausbau", weight: 0.8, compound: true}
+      - {term: "Straßensanierung", weight: 0.7, compound: true}
+      - {term: "Tiefbau", weight: 0.8, compound: true}
+      - {term: "Kanalbau", weight: 0.8, compound: true}
+      - {term: "Brückenneubau", weight: 0.8, compound: true}
+      - {term: "Brückensanierung", weight: 0.7, compound: true}
+      - {term: "Ortsumgehung", weight: 0.85, compound: true}
+      - {term: "Umgehungsstraße", weight: 0.85, compound: true}
+      - {term: "Verkehrsinfrastruktur", weight: 0.8, compound: true}
+      - {term: "Erschließungsstraße", weight: 0.7, compound: true}
+      - {term: "Radweg", weight: 0.6, compound: true}
+      - {term: "Ladeinfrastruktur", weight: 0.7, compound: true}
+      - {term: "Planfeststellung", weight: 0.6, compound: true}

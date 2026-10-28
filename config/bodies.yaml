@@ -1,0 +1,127 @@
+# IRIS source and body registry.
+#
+# Two things live here, and the difference matters:
+#
+#   * `sources` — the endpoints this harvester may be pointed at, each carrying its
+#     verification date, its licence state and its health state. This is the
+#     machine-readable counterpart of SOURCE_VERIFICATION.md.
+#   * `bodies` — informational only. Councils registered explicitly (here: the two
+#     fixture councils). NOTHING READS THIS SECTION: it does not select which bodies
+#     are harvested, and `default_source` is validated but does not choose the source
+#     either (`IRIS_SOURCE` does). `SourceRegistry.bodies_for` exists as a seam for a
+#     future allow-list; the harvest path never calls it (only a unit test does). Body selection today is the
+#     repeatable `--body` flag on `iris-harvest harvest`; with no flag every body the
+#     source's System object lists is swept. OParl bodies are DISCOVERED at runtime,
+#     so the live endpoint lists none here: writing 26 body ids we have not probed
+#     individually would be a guess, and this project does not guess.
+#
+# `licence` is never inferred. A source whose bodies declare no `Body.license` (on the
+# live endpoint the key is ABSENT on all 26 bodies, not null) is recorded as
+# `undeclared`, which is a visible, actionable state — not a quiet assumption that
+# the data is permissively licensed.
+#
+# `health` vocabulary:
+#   verified_live     — probed on `verified_at`; responded as described below
+#   verified_offline  — a committed cassette replayed through the production path
+#   nonexistent       — the host does not resolve; there is no service to reach
+
+version: "2026.1"
+default_source: fixture
+
+sources:
+  fixture:
+    adapter: fixture
+    default: true
+    health: verified_offline
+    verified_at: "2026-10-27"
+    licence: not_applicable
+    licence_note: >-
+      Synthetic cassette data written for this project. Hosts are example.org,
+      municipality names are placeholders and no real personal names appear.
+    scenario: happy_path
+    description: >-
+      Offline replay of the committed JSON cassettes through the real OParl adapter
+      and the real HTTP client. This is the demo path and the default source, so a
+      reviewer can run the whole pipeline — guard rails, normalisation, matching,
+      geo resolution, load and report — with no network access at all.
+
+  oparl:
+    adapter: oparl
+    health: verified_live
+    verified_at: "2026-10-28"
+    evidence: docs/evidence/
+    system_url: https://www.muenchen-transparent.de/oparl/v1.0
+    oparl_version: "1.0"
+    bodies_discovered: 26
+    licence: undeclared
+    licence_note: >-
+      The Body.license key is absent on all 26 bodies of this endpoint (observed
+      2026-10-28, docs/evidence/). Recorded as undeclared; never inferred from a
+      sibling body and never assumed to be open.
+    robots: >-
+      No Disallow applying to this user-agent was observed at probe time. robots.txt
+      is re-fetched and honoured at runtime (settings.respect_robots).
+    description: >-
+      The primary live source. OParl is the open standard through which German
+      council information systems actually publish, which is what makes coverage
+      across hundreds of municipalities achievable at all.
+    observed_behaviour:
+      pagination: links.next plus pagination.{elementsPerPage,totalPages}
+      # Observed 2026-10-28 on body/1/list/paper, first page. Every figure below is in the
+      # committed capture (docs/evidence/muenchen-transparent_modified_since_probe.json).
+      # Counts are point-in-time; the evidenced invariant is that the filter narrows
+      # the result set monotonically as the cut-off moves forward.
+      modified_since: >-
+        honoured and narrowing. items on page 1 / totalPages: no filter 100/15;
+        2020-01-01 100/8; 2026-01-01 80/1; 2026-06-01 45/1
+      paper_date: absent key (0 of 100 on body/1 page 1) — the date-provenance ladder is load-bearing
+      paper_modified: >-
+        the corrupt sentinel "-0001-11-30T00:00:00+00:53" in created AND modified on
+        96 of 100 papers of body/1 page 1; the norm there, not an edge case
+      paper_location: absent — geo tiers 4 and 5 dominate on this source
+      body_ags: declared by 1 of 26 bodies (the Stadtrat); its advertised paper URL answered HTTP 404 (one request, 2026-10-28)
+
+  ratsdokumente:
+    adapter: ratsdokumente
+    health: nonexistent
+    verified_at: "2026-10-27"
+    base_url: https://ratsdokumente.de
+    licence: unknown
+    licence_note: No service exists to declare one.
+    description: >-
+      The briefed endpoint https://ratsdokumente.de/api/search. Verified
+      NON-EXISTENT: NXDOMAIN, no NS/A/SOA records, and DENIC reports the domain as
+      "Status: free". The adapter is retained and fixture-tested so it can be
+      enabled unchanged if such a source is ever stood up. It is not presented as
+      verified against a live endpoint.
+    evidence: SOURCE_VERIFICATION.md
+
+# Explicitly registered councils (informational; see the note at the top of this file).
+# `ags` is the 8-digit Amtlicher Gemeindeschlüssel and is what the geo tier-4
+# municipality-centroid fallback resolves against; a body without one can only ever
+# reach tier 5 (unresolved), which the report states rather than hiding. At harvest
+# time the AGS comes from the discovered `Body.ags`, not from this list.
+bodies:
+  - source: fixture
+    id: https://oparl.example.org/oparl/v1.0/body/1
+    name: Musterstadt
+    ags: "09162000"
+    ars: "091620000000"
+    licence: https://creativecommons.org/licenses/by/4.0/
+    health: verified_offline
+    paper_endpoint: https://oparl.example.org/oparl/v1.0/body/1/list/paper
+    note: >-
+      Placeholder council. The AGS is the real München code so the committed
+      gazetteer entry (and therefore the containment check) is exercised honestly.
+
+  - source: fixture
+    id: https://oparl.example.org/oparl/v1.0/body/2
+    name: Beispielstadt
+    ags: "11000000"
+    ars: "110000000000"
+    licence: undeclared
+    health: verified_offline
+    paper_endpoint: https://oparl.example.org/oparl/v1.0/body/2/list/paper
+    note: >-
+      Deliberately carries Body.license = null, which is the common real-world case
+      and makes the undeclared-licence path part of the default demo.

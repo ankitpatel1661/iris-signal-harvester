@@ -1,0 +1,83 @@
+# Controlled vocabulary for ``document_type``.
+#
+# OParl ``Paper.paperType`` (and the ratsdokumente ``document_type``) is free text and
+# differs per Ratsinformationssystem: "Beschlussvorlage", "BA-Antrag",
+# "Stadtratsantrag", ... The pipeline maps the raw value onto the small vocabulary below
+# so rows are comparable across councils. The raw value is NOT lost: it stays verbatim
+# in ``raw_payload``.
+#
+# Matching is exact on the *folded* value (NFKC, casefold, umlauts and ß folded,
+# whitespace collapsed), so "Beschlussvorlage", "beschlussvorlage" and "BESCHLUSSVORLAGE"
+# are one spelling. It is deliberately NOT substring matching: "Antrag auf Anhörung zum
+# Haushalt" is not guessed to be an "Antrag"; it lands in ``unmapped`` and is counted,
+# which is the signal to add an alias here.
+#
+# A canonical name always maps to itself; list only the *other* spellings under it.
+# An alias may appear under exactly one canonical type (the loader rejects ambiguity).
+#
+# A missing or blank raw value stays NULL (it is "absent", counted by the quality
+# report's null rate). A present value that matches nothing becomes ``unmapped``.
+#
+# Bump ``version`` whenever an alias is added or moved.
+
+version: 1
+unmapped: unmapped
+
+types:
+  Beschlussvorlage:
+    - Beschlussvorschlag
+    - Beschlussvorlage (öffentlich)
+    - Beschlussvorlage (nichtöffentlich)
+    - Beschlussvorlage öffentlich
+    - Entscheidungsvorlage
+  Vorlage:
+    - Sitzungsvorlage
+    - Verwaltungsvorlage
+    - Stadtratsvorlage
+    - Gemeinderatsvorlage
+    - Kreistagsvorlage
+    - Ausschussvorlage
+    - Drucksache
+    - Vorlage zur Kenntnisnahme
+  Antrag:
+    - BA-Antrag
+    - Stadtratsantrag
+    - Gemeinderatsantrag
+    - Kreistagsantrag
+    - Ratsantrag
+    - Fraktionsantrag
+    - Ergänzungsantrag
+    - Änderungsantrag
+    - Dringlichkeitsantrag
+    - Bürgerantrag
+    - Einwohnerantrag
+    - Antrag der Fraktion
+  Niederschrift:
+    - Protokoll
+    - Sitzungsniederschrift
+    - Sitzungsprotokoll
+    - Ergebnisprotokoll
+    - Beschlussprotokoll
+  Mitteilung:
+    - Verwaltungsmitteilung
+    - Mitteilungsvorlage
+    - Information
+    - Informationsvorlage
+    - Mitteilung der Verwaltung
+  Anfrage:
+    - BA-Anfrage
+    - Stadtratsanfrage
+    - Gemeinderatsanfrage
+    - Fraktionsanfrage
+    - Schriftliche Anfrage
+    - Kleine Anfrage
+    - Große Anfrage
+    - Anfrage der Fraktion
+    - Bürgeranfrage
+  Bericht:
+    - Sachstandsbericht
+    - Verwaltungsbericht
+    - Berichtsvorlage
+    - Tätigkeitsbericht
+    - Zwischenbericht
+    - Abschlussbericht
