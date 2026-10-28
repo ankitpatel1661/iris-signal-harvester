@@ -13,12 +13,18 @@ body,
 }
 
 .block-container {
-    padding-top: 25px;
+    /* Streamlit Community Cloud floats a 60px toolbar (Fork / GitHub / menu) over the
+       top of the app. With only 25px of padding the first element - the sample-data
+       banner - was clipped by it on load. Clear the toolbar instead. */
+    padding-top: 72px;
     padding-bottom: 20px;
     padding-left: 25px;
     padding-right: 25px;
     max-width: 100% !important;
 }
+
+/* Running locally there is no Cloud toolbar, so the same padding just looks generous;
+   keep it, so the hosted and local views match. */
 
 /* =====================================================
    SIDEBAR
@@ -227,12 +233,16 @@ section[data-testid="stSidebar"] h3 {
     vertical-align: middle;
 }
 
-section[data-testid="stSidebar"] button {
+/* Real buttons only. A blanket `button` rule here also hit the chevron inside the
+   multiselect, putting a dark block on a light field. */
+section[data-testid="stSidebar"] .stButton button,
+section[data-testid="stSidebar"] [data-testid^="stBaseButton"] {
     background: #1E293B;
     border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-section[data-testid="stSidebar"] button p {
+section[data-testid="stSidebar"] .stButton button p,
+section[data-testid="stSidebar"] [data-testid^="stBaseButton"] p {
     color: #F8FAFC;
 }
 
@@ -485,3 +495,94 @@ section[data-testid="stSidebar"] button[aria-label^="Help for"] svg {
     max-width: 100%;
     overflow-x: auto;
 }
+
+
+/* =====================================================
+   SIDEBAR FORM CONTROLS — visibility
+   ------------------------------------------------------
+   Selectors here follow the DOM this Streamlit version actually renders, confirmed in
+   the browser rather than assumed:
+
+       [data-testid="stMultiSelect"] > div > div      <- the control surface
+           [data-testid="stMultiSelectTagsContainer"]
+           button > svg                               <- the chevron
+
+   The control inherited the light page background (#F4F7FC) while the chevron button was
+   painted dark by the blanket rule above, so inside the dark sidebar it read as a pale
+   field with an unexplained dark square. Both now sit on one dark surface.
+
+   Slate palette: sidebar #0F172A / surface #1E293B / border #334155
+                  value #E2E8F0 / placeholder + icons #94A3B8 / accent #2563EB
+======================================================*/
+
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"] > div > div,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div,
+section[data-testid="stSidebar"] [data-testid="stTextInput"] > div > div,
+section[data-testid="stSidebar"] [data-testid="stNumberInput"] > div > div {
+    background-color: #1E293B !important;
+    border: 1px solid #334155 !important;
+    border-radius: 7px !important;
+    color: #E2E8F0 !important;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"] > div > div:hover,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div:hover {
+    border-color: #475569 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"] > div > div:focus-within,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] > div > div:focus-within {
+    border-color: #2563EB !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.28) !important;
+}
+
+/* The chevron is part of the field, not a button in its own right. */
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"] button,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] button {
+    background: transparent !important;
+    border: none !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"] svg,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] svg {
+    fill: #94A3B8 !important;
+    color: #94A3B8 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"]:hover svg,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"]:hover svg {
+    fill: #E2E8F0 !important;
+    color: #E2E8F0 !important;
+}
+
+/* A placeholder must not look like a chosen value. */
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"] input::placeholder,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] input::placeholder {
+    color: #94A3B8 !important;
+    opacity: 1 !important;
+}
+
+section[data-testid="stSidebar"] [data-testid="stMultiSelect"] input,
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] input {
+    color: #E2E8F0 !important;
+}
+
+/* Chosen values. */
+section[data-testid="stSidebar"] [data-baseweb="tag"] {
+    background-color: #2563EB !important;
+    border-radius: 5px !important;
+}
+
+section[data-testid="stSidebar"] [data-baseweb="tag"] span,
+section[data-testid="stSidebar"] [data-baseweb="tag"] svg {
+    color: #FFFFFF !important;
+    fill: #FFFFFF !important;
+}
+
+/* The open dropdown menu is deliberately left alone. It renders in a portal at the end of
+   <body> with no data-baseweb or data-testid hook - only emotion-generated class names that
+   change between Streamlit builds - so the single stable selector is div[role="listbox"],
+   and recolouring it would mean styling its parent through :has(). It already reads as dark
+   text on a light panel, which is legible and matches the main content area, so the fragile
+   selector is not worth the cosmetic gain. Verified open in the browser. */

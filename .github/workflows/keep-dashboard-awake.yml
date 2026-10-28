@@ -1,0 +1,80 @@
+name: Keep dashboard awake
+
+# Streamlit Community Cloud puts an app to sleep after a stretch with no viewers, and a
+# sleeping app shows a "wake up" screen instead of the dashboard. Anyone following the link
+# from the submission would hit that screen first.
+#
+# This pings the app on a schedule, which counts as traffic. A plain HTTP request is used
+# rather than periodic empty commits: commits would add noise to a deliberately short
+# history for no benefit, and a request also tells us whether the app is really serving.
+#
+# WHICH URL, AND WHY IT MATTERS (measured 2026-10-28, not assumed):
+#   https://iris-signal-harvester.streamlit.app/            -> 303 to a share.streamlit.io
+#                                                              auth bounce. With `curl -L`
+#                                                              and no cookie jar this
+#                                                              redirects until curl gives up,
+#                                                              so a naive ping FAILS here.
+#   https://iris-signal-harvester.streamlit.app/~/+/        -> 200, serves the app shell.
+#   https://iris-signal-harvester.streamlit.app/healthz     -> 200 {"status":"ok"}
+#
+# So the app itself is fetched at /~/+/ (that is the request that wakes it), and /healthz is
+# used as a cheap liveness signal.
+#
+# Two things worth knowing:
+#   * GitHub disables scheduled workflows after 60 days with no activity in the repository.
+#     If the dashboard starts sleeping again, check the Actions tab and re-enable it.
+#   * Scheduled runs are queued, not exact. Drift of a few minutes is normal and harmless.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *" # every six hours
+  workflow_dispatch: # and on demand, from the Actions tab
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-dashboard-awake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      APP_BASE: https://iris-signal-harvester.streamlit.app
+    steps:
+      - name: Report liveness
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          code=$(curl -sS --max-time 30 -o /tmp/health -w '%{http_code}' "$APP_BASE/healthz" || echo 000)
+          echo "healthz -> HTTP $code $(cat /tmp/health 2>/dev/null | head -c 60)"
+
+      - name: Wake the app
+        run: |
+          set -uo pipefail
+
+          # Deliberately no -L: the bare root redirects into an auth bounce that loops.
+          # /~/+/ is the app itself and answers 200 directly.
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -sS --max-time 60 -o /tmp/body.html -w '%{http_code}' "$APP_BASE/~/+/" || echo 000)
+            echo "attempt $attempt -> HTTP $code ($(wc -c < /tmp/body.html 2>/dev/null || echo 0) bytes)"
+
+            if [ "$code" = "200" ]; then
+              # Streamlit serves a shell and fills it in over a websocket, so none of the
+              # dashboard's own text appears in this response. Confirming the shell is the
+              # most a single HTTP request can honestly verify.
+              if grep -qi "streamlit" /tmp/body.html; then
+                echo "::notice::Dashboard is awake and served the Streamlit shell."
+                exit 0
+              fi
+              echo "::warning::HTTP 200 but the body did not look like Streamlit; treating as awake."
+              exit 0
+            fi
+
+            sleep $((attempt * 15))
+          done
+
+          echo "::error::$APP_BASE/~/+/ did not return HTTP 200 after 5 attempts (last: $code)."
+          exit 1
