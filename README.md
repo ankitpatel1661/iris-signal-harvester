@@ -1,0 +1,598 @@
+# iris-signal-harvester
+
+Harvests infrastructure-trigger signals (land-use plans, wind and solar parks, grid connections,
+storage, heat planning, digital infrastructure, transport civils) from German council information
+systems (*Ratsinformationssysteme*) and loads them into `iris_staging.signal_ingest` on
+PostgreSQL 16 / PostGIS 3.4, with geometry in EPSG:25832.
+
+The design rule that runs through everything below: **an uncertain fact is stored as a field, not
+guessed.** An unverifiable date is `NULL` with `published_at_origin = 'unknown'`. An unresolvable
+location is `NULL` with `geo_method = 'unresolved'` and `geo_confidence = 'none'`. A coordinate that
+fails validation rejects the record; it is never clamped, snapped or replaced by a fallback point.
+
+To see it work: `make demo` (needs Docker and `make`; details under [How to run](#how-to-run)).
+
+## Data source
+
+**The briefed endpoint does not exist.** The brief names `https://ratsdokumente.de/api/search`.
+It was probed on **2026-10-27** and found to be unreachable for a structural reason rather than a
+transient one:
+
+- DNS returns `NXDOMAIN`; there are no NS, A or SOA records.
+- DENIC, the authoritative registry for `.de`, reports the domain as `Status: free`, i.e. it is
+  not registered to anyone.
+- Control probes (`oparl.org`, `politik-bei-uns.de`) resolved and answered from the same machine
+  in the same session, so this was not a local DNS or egress problem.
+
+There is therefore no service to reach, and no access restriction was encountered or bypassed. The
+full evidence log (commands and raw output) is in [`SOURCE_VERIFICATION.md`](SOURCE_VERIFICATION.md).
+`make verify` does **not** regenerate that committed file. It runs `iris-harvest verify-source`, which by
+default writes its own document into the git-ignored `reports/` directory
+(`reports/SOURCE_VERIFICATION.md`), so that the committed artefact is never overwritten by accident.
+Sections 1-7 of the committed file came from `scripts/verify_source.sh` (a shell probe that writes
+`SOURCE_VERIFICATION.md` next to itself, i.e. into `scripts/`); section 8, the live-OParl capture, is
+maintained by hand from [`docs/evidence/`](docs/evidence/README.md) and neither tool generates it. Refreshing
+the committed file is therefore a manual step (run the script and move the output, or pass
+`iris-harvest verify-source -o SOURCE_VERIFICATION.md`, which overwrites the file including section 8, so
+section 8 must be re-added). The briefed `/api/search` adapter (`adapters/ratsdokumente.py`) is kept
+and tested against fixtures so that it could be enabled unchanged if such a service is ever stood
+up. Its response shape is a reconstruction (the brief gives only a URL and a pagination pattern), and
+it has never been exercised against a live server.
+
+**OParl is the alternative, and the primary live source.** [OParl](https://oparl.org) is an open,
+published specification for exactly this data. It is implemented by the major council-information
+vendors, which is the only realistic route to coverage across many municipalities. The specification
+defines a `modified` timestamp on every object, which is what incremental harvesting needs (on the
+live endpoint it is mostly a corrupt sentinel, see below). A real endpoint was
+found on 2026-10-27 and re-observed, with a committed capture, on **2026-10-28**:
+`https://www.muenchen-transparent.de/oparl/v1.0`, **26 bodies, OParl 1.0**. The adapter accepts 1.0 and
+1.1 type URLs.
+
+What the live capture showed, and the code is built around. The raw material is committed in
+[`docs/evidence/`](docs/evidence/README.md) (read-only requests, 2026-10-28, redacted and truncated). The
+first 2026-10-27 probe kept no raw response, so no figure from it is cited here. The live data moves, so
+these numbers are a dated observation, not a standing fact.
+
+- Pagination is `links.next` plus `pagination: {elementsPerPage, totalPages}`.
+- **`modified_since` is honoured by the server and narrows the result set.** Observed on 2026-10-28
+  against `https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper`, first page of each query:
+
+  | `modified_since` | items on page 1 | `totalPages` |
+  |---|---|---|
+  | (none) | 100 | 15 |
+  | 2020-01-01 | 100 | 8 |
+  | 2026-01-01 | 80 | 1 |
+  | 2026-06-01 | 45 | 1 |
+
+  Every row above is in the committed capture, `docs/evidence/muenchen-transparent_modified_since_probe.json`,
+  which also records two further cut-offs (`2016-01-01` → 9 pages, `2025-01-01` → 3 pages). The counts are
+  point-in-time — the endpoint's data changes — so what is actually evidenced is the *invariant*: the filter is
+  honoured, and the result set narrows monotonically as the cut-off moves forward. A figure from an earlier,
+  unrecorded 2026-10-27 probe was withdrawn: its raw response was not saved and it could not be reproduced.
+  Nothing is cited here that is not in the capture.
+- **`Paper.date` is an absent key**, not `null`: 0 of the 100 papers on the first page of `body/1` carry it.
+  The adapter and normaliser treat absent and `null` alike, so the date-provenance ladder below is not
+  optional.
+- **The corrupt sentinel `-0001-11-30T00:00:00+00:53` is not rare.** It is the value of both `created` and
+  `modified` on **96 of the 100 papers** on that page. That makes the date-provenance ladder *more*
+  load-bearing than we first claimed, and means most papers on that page contribute nothing to a watermark.
+  Handling: the value is captured verbatim, never parsed into a watermark (the watermark parser returns
+  nothing for it), and the record is not rejected merely because `modified` is the sentinel. On the filtered
+  first pages in the capture (`2016-01-01`, `2025-01-01`) none of the papers carried the sentinel.
+- **`Body.license` is an absent key**, not `null`, on all 26 bodies. The licence is recorded per body and
+  stays empty when undeclared.
+- `Paper` objects on that endpoint carry no `location` (0 of 100), so geo tiers 4 and 5 dominate in practice.
+- **Only 1 of 26 bodies declares an `ags`** (the Stadtrat, `body/0`). The other 25 can, as things stand,
+  only reach geo tier 5 (`unresolved`). And that body's advertised paper URL
+  (`https://www.muenchen-transparent.de/oparl/v1.0/list/paper`) answered **HTTP 404** when requested once on
+  2026-10-28, so the one body able to reach the municipality-centroid tier had no reachable paper list at
+  that moment.
+
+**"Politik bei uns"** (`politik-bei-uns.de`) is the nearest real analogue to what was briefed: an
+aggregator of council documents. It still answers HTTP 200, but its own homepage says it is no longer
+maintained and receives no data updates. It is therefore usable only as a corpus for building
+fixtures, never as a live source.
+
+The harvester identifies itself with a descriptive, contactable `User-Agent`, honours `robots.txt`
+and `Crawl-delay` (`IRIS_RESPECT_ROBOTS`), rate-limits per host, and treats HTTP 401/403 or a
+robots disallow as terminal (`AccessRestricted`): no retry, no header manipulation, no user-agent
+spoofing. Per-body licences are stored on each row (`source_licence`) and never inferred from a
+sibling body. `iris-harvest discover` enumerates the reachable bodies.
+
+**There is no configured allow-list of bodies.** `config/bodies.yaml` is loaded and validated, and it
+decides which *source* a run talks to (adapter, System URL, fixture scenario) and records each source's
+verification date, licence state and health. It does not select which bodies are harvested: its
+`bodies:` section (two fixture councils) is not read by the harvest path, and the registry's selection
+helper (`SourceRegistry.bodies_for`) is a seam: the harvest path never calls it (only a unit test does). Without flags, `harvest` sweeps every body
+the source's System object lists; the only selection that exists is the repeatable `--body` flag (by body id
+or name). For a crawler over hundreds of councils that means geographic or domain filtering by body is not
+yet configurable.
+
+## Mapping assumptions
+
+### OParl `Paper` to `signal_ingest`
+
+| `signal_ingest` column | Source | Notes |
+|---|---|---|
+| `source_system` | adapter name (`oparl`, `fixture`, `ratsdokumente`) | Part of the natural key. |
+| `source_body_id` | OParl `Body.id` | Verbatim. Part of the natural key (see below). |
+| `source_record_id` | `Paper.id` (the full dereferenceable URL, stripped) | Verbatim, never regenerated. A paper with no `id` is rejected as `missing_required_field`, even when it has a `reference`. `Paper.reference` is the human file number (Aktenzeichen), which is editable and not guaranteed unique, so it is **not** the key; it stays in `raw_payload` as an attribute only. |
+| `source_url` | `Paper.id` | OParl ids are dereferenceable URLs, so the traceability anchor costs nothing. Must be absolute `http(s)`, else `invalid_source_url`. |
+| `source_licence` | `Body.license` | `NULL` when the body declares none. Not inferred. |
+| `title` | `Paper.name` | Whitespace-normalised: trimmed, every internal run of whitespace (spaces, tabs, newlines, NBSP, figure space) collapsed to one space, zero-width characters and BOM dropped. The same applies to summary, document type and address text. The original stays untouched in `raw_payload`. |
+| `summary` | none in the standard | OParl `Paper` has no abstract field. It stays `NULL` unless a source supplies one. Matching therefore runs mostly on the title. |
+| `document_type` | `Paper.paperType` | Mapped through `config/document_types.yaml`; see [Document types](#document-types). |
+| `published_at`, `published_at_origin` | `Paper.date`, falling back as below | Value and provenance are always set together; the model and a DB `CHECK` enforce `published_at IS NULL` if and only if origin is `unknown`. |
+| `ags`, `ars` | `Body.ags`, `Body.rgs` | When the body declares them. A misshapen AGS (not 8 digits) is stored as `NULL` with a note in the run report; the record is not rejected and the value is not repaired. On the 2026-10-28 capture only 1 of 26 bodies declares an `ags`. |
+| `municipality_name`, `kreis`, `bundesland` | gazetteer, looked up by AGS | Only for AGS values present in `config/gazetteer.json`. |
+| `geom`, `geo_method`, `geo_confidence`, `source_crs` | geo resolver, see below | |
+| `signal_type`, `relevance_score`, `matched_keywords`, `taxonomy_version` | taxonomy matcher | `signal_type` is the highest-weighted matched type; every hit is kept with term, surface form, field, offset and weight, so a score is reproducible from the text and the taxonomy version. Documents scoring below `emit_min_score` (0.35) are not signals. |
+| `raw_payload` | the whole `Paper` object, untouched | Allows re-deriving everything without re-crawling. |
+| `content_hash`, `hash_version` | computed | See the last subsection. |
+| `first_seen_at`, `last_seen_at`, `updated_at` | database | `last_seen_at` moves on every run that re-observes a row; `updated_at` only when content changed. |
+
+The natural key is `(source_system, source_body_id, source_record_id)`; for OParl that is
+`(oparl, Body.id, Paper.id)`. `Paper.id` is the object's identity in OParl. `Paper.reference` is only a
+stored attribute, because it is an editable human file number: two papers sharing a `reference` remain two
+rows, and a renumbered paper keeps its row.
+
+**Re-keying has a data consequence.** The OParl key used to be `Paper.reference`. A staging table loaded
+under the old key would, on the next run, gain new rows keyed by `Paper.id` *beside* the old
+reference-keyed ones, and the old rows are never reconciled (the adapter ignores OParl's `deleted` flag
+and nothing retires rows that stop appearing). No clean-up migration ships, so **a reset of the staging
+table is expected** before the next real load (`make reset` deletes the local compose volume). The
+`document_type` mapping below changes stored values and therefore `content_hash` too, so rows that
+survive are updated once.
+
+### Publication date provenance
+
+"Verified rather than assumed" is made structural: a date is stored together with where it came from.
+
+| Tier | `published_at_origin` | Meaning | Reachable from OParl today? |
+|---|---|---|---|
+| 1 | `payload_field` | An explicit publication date in the record (`Paper.date`). The most trustworthy. | Yes, when the system supplies it. The captured live endpoint supplies none (0 of 100 papers). |
+| 2 | `http_header` | The `Last-Modified` header of the record's own resource. A statement about the server copy, not necessarily the publication. | No. The OParl adapter leaves `http_last_modified` empty. The tier exists for sources that supply it. |
+| 3 | `derived_from_meeting` | The date of the meeting the document was consulted in. A proxy, labelled as derived. | Not as the adapters stand: the OParl adapter does not dereference `consultation` or `meeting` objects. |
+| 4 | `unknown` | `published_at` is `NULL`. The row is still loaded: absence is information, and it is counted in the quality report. | Yes. On the captured endpoint it is where all 100 sampled papers would land, since tier 1 is absent and tiers 2 and 3 are not reachable. |
+
+Rules that are easy to get wrong:
+
+- A tier that is **absent** falls through to the next. A tier that is **present but corrupt** rejects
+  the record (`date_unparseable` or `date_out_of_range`); it does not fall through, because silent
+  substitution would hide bad data from the rejection histogram.
+- Dates are parsed from German `TT.MM.JJJJ` and the ISO-8601 variants. A naive timestamp is localised
+  with `IRIS_SOURCE_TIMEZONE` (`Europe/Berlin`) and stored as UTC. A naive HTTP header value is taken
+  as UTC, since HTTP dates are GMT.
+- A year before `IRIS_MIN_PLAUSIBLE_YEAR` (1990) or more than `IRIS_MAX_FUTURE_DAYS` (400) ahead is
+  malformed. `modified` is never used as a publication date; it feeds only the watermark, through a
+  parser that returns `None` for anything implausible.
+
+### Document types
+
+`document_type` is mapped from `paperType` (also read as `document_type` / `documentType`) through
+[`config/document_types.yaml`](config/document_types.yaml). The canonical vocabulary is `Beschlussvorlage`,
+`Vorlage`, `Antrag`, `Niederschrift`, `Mitteilung`, `Anfrage` and `Bericht`, with about 50 aliases between
+them (for example `BA-Antrag` and `Stadtratsantrag` map to `Antrag`).
+
+- Matching is **exact on the folded value** (NFKC, case-folded, umlauts folded, whitespace collapsed). There
+  is no substring matching, so a value is never guessed into the nearest bucket.
+- A value that is present but matches nothing is stored as **`unmapped`**, not dropped. The quality report
+  counts these in section 7b, "Document types" (JSON key `document_types`: `typed`, `unmapped`,
+  `unmapped_rate`, `top_unmapped_raw`), and validation query 16 lists them. Councils name document types
+  freely, so a rising `unmapped` count is the signal to extend the vocabulary.
+- An absent or blank value stays `NULL` and is measured by the report's null rate.
+- The raw value is **always kept** in `raw_payload`. Taxonomy matching still sees the raw value, so what
+  matches is unaffected by the mapping.
+- An alias listed under two types, or `unmapped` used as a type, is a `ConfigurationError` at load time.
+- The loader is `DocumentTypes` in `domain/normalise.py`.
+
+### Geographic resolution
+
+Tiers are tried in order; the first that yields a valid point wins, and the method and confidence are
+stored with it.
+
+| Tier | `geo_method` | Input | `geo_confidence` | Status in this repo |
+|---|---|---|---|---|
+| 1 | `source_coordinates` | Coordinates in the record with a **declared** CRS (EPSG:25832 or 25833) | `high` | Implemented. Papers on the probed OParl endpoint carry no `location`, so this fires only for sources that supply one. |
+| 2 | `cadastre_parcel` | Gemarkung, Flur, Flurstück resolved against an ALKIS/WFS service | `high` | **Not implemented.** A parcel reference is detected and the tier is skipped with an explanatory note. It does not pretend to resolve. |
+| 3 | `address_geocode` | A street address inside a known municipality | `medium` | Only the `Geocoder` interface exists. **No geocoder implementation ships**, so this tier is dormant until one is plugged in. |
+| 4 | `municipality_centroid` | AGS, looked up in the gazetteer | `low` | Implemented, for the municipalities in `config/gazetteer.json` only (9 cities in the demo set). |
+| 5 | `unresolved` | nothing usable | `none` | `geom` is `NULL`. |
+
+Every candidate point passes four checks, in order, before it is stored. Each failure rejects the
+record with its own `RejectCode`:
+
+1. finite (`geo_non_finite`);
+2. not a latitude/longitude pair in a projected field, which also catches `(0, 0)`
+   (`geo_latlon_in_projected_field`);
+3. inside the numeric domain of ETRS89 / UTM 32N (`geo_out_of_crs_domain`);
+4. inside the national envelope (`geo_outside_national_envelope`) and, when the municipality is known,
+   inside that municipality buffered by `IRIS_MUNICIPALITY_TOLERANCE_M` (`geo_outside_claimed_municipality`).
+
+The national envelope (check 4) is a coarse outline and errs in **both** directions; see
+[Known limitations](#known-limitations).
+
+Downstream consumers should filter on `geo_confidence`. A `low` point is the location of a town, not
+of a project.
+
+### Why EPSG:25832, and the zone-33 caveat
+
+Everything is stored as `geometry(Point, 25832)` (ETRS89 / UTM zone 32N), as briefed: one CRS makes the
+federal dataset uniform and the SRID is enforced by the column type. Germany is officially split across
+two UTM zones, though. Data from the east may arrive in EPSG:25833. Such coordinates are reprojected into
+25832 with `pyproj`, which is mathematically valid, and the CRS as received is kept in `source_crs`.
+
+The caveat is practical, not mathematical: 25832 is centred on 9 degrees east, so the far east of Germany
+is about 6 degrees off the central meridian. Distances and areas computed directly on 25832 coordinates
+there are distorted by roughly 0.2 percent. Fine for screening; do not use it for cadastral-grade
+measurement. Only 25832 and 25833 are accepted as input CRS; anything else is rejected
+(`geo_reprojection_failed`), never assumed.
+
+### What the content hash excludes, and why
+
+`content_hash` is a SHA-256 over a canonical JSON projection (sorted keys, no insignificant whitespace,
+NFKC-normalised strings, explicit nulls) of the **semantic** fields only: the provenance keys, title,
+summary, document type, date and its origin, the geography columns, and the signal type, score and
+matched keywords. It drives change detection: an unchanged hash means the upsert writes nothing.
+
+Deliberately excluded:
+
+- `modified`, because the server moves it whenever it touches a record, not when the record means
+  something different. Including it would make every record look changed on every run.
+- `raw_payload`, for the same reason: it contains `modified`, request echoes and other transport noise.
+- `harvest_run_id`, `first_seen_at`, `last_seen_at`, `updated_at`, request ids and pagination echoes.
+- `taxonomy_version`. A taxonomy edit that changes any score or match already moves the hash through
+  `signal_type`, `relevance_score` and `matched_keywords`, so a version bump alone would only churn
+  every row.
+
+The projection is versioned (`HASH_VERSION = 1`). The price of this design is stated under
+[Known limitations](#known-limitations).
+
+## How to run
+
+### Prerequisites
+
+- **Docker with Compose v2**, and GNU `make`, for `up`, `demo`, `harvest`, `report`, `down`.
+- **Python 3.11 or newer** for the host-side targets (`install`, `verify`, `test`, `lint`, `typecheck`).
+  CI runs 3.11 and 3.12; the image uses 3.12.
+- First run only: network access, to pull the `python` and `postgis/postgis:16-3.4` images and to
+  install Python dependencies into the image. On Apple silicon the PostGIS image runs under amd64
+  emulation and starts slowly; the healthcheck allows for it.
+
+### Quick start
+
+```
+make demo
+```
+
+`make demo` is the entry point. It needs **no production credentials**, and the harvest itself makes
+**no network calls**: it replays the committed fixtures in `tests/fixtures/cassettes` through the real
+OParl adapter. (Building the image the first time does need the network, as above.) It will:
+
+1. reset the local compose database (it runs `docker compose down --volumes`, so any data in this
+   project's `iris-pgdata` volume is deleted; the demo needs a clean first pass),
+2. build the image, start PostGIS and apply the migrations,
+3. run `iris-harvest harvest` over the fixtures **twice**,
+4. print the re-run delta, read straight from `iris_staging.harvest_run` and `signal_ingest`, and
+   exit non-zero unless the second pass is clean,
+5. run the invariant queries from `sql/validation_queries.sql` (`iris-harvest validate`).
+
+The delta block looks like this (`<n>` stands for whatever the fixtures produce):
+
+```
+================================================================================
+ RE-RUN DELTA  (iris_staging.harvest_run, last two runs, oldest first)
+================================================================================
+        pass         |   run    |  status   | fetched | inserted | updated | unchanged | rejected
+---------------------+----------+-----------+---------+----------+---------+-----------+---------
+ pass 1 (first load) | ........ | succeeded |   <n>   |   <n>    |    0    |     0     |   <n>
+ pass 2 (re-run)     | ........ | succeeded |   <n>   |    0     |    0    |    <n>    |   <n>
+
+ rows whose updated_at moved during pass 2 ...... 0   (must be 0)
+================================================================================
+ IDEMPOTENT: pass 2 -> inserted=0 updated=0 (pass 1 inserted <n>); ...
+================================================================================
+```
+
+The check fails, and so does `make demo`, if pass 1 inserted nothing (a zero on pass 2 would then prove
+nothing), if pass 2 inserted or updated anything, or if any row's `updated_at` moved during pass 2. The
+harvest commands' own exit codes follow the quality-gate verdict, so a `WARN` on a tiny fixture set is
+reported but does not abort the demo; the delta is what the demo asserts. Reports are written to
+`./reports/`, one pair per run named after its `harvest_run_id` — `quality_<run_id>.md` and a
+`.json` twin — plus `quality_latest.md` / `quality_latest.json`, which always point at the most
+recent run. Runs are kept rather than overwritten so a re-run delta can be read from the files
+as well as from `harvest_run`.
+
+### Make targets
+
+| Target | What it does |
+|---|---|
+| `make install` | Creates `.venv` and installs the package with dev dependencies. |
+| `make up` | Starts PostGIS (`postgis/postgis:16-3.4`, published on `127.0.0.1` only) and applies migrations. |
+| `make verify` | Re-runs the read-only probe of the briefed source (`iris-harvest verify-source`) and writes `reports/SOURCE_VERIFICATION.md`, which is git-ignored. It does **not** rewrite the committed `SOURCE_VERIFICATION.md` (see [Data source](#data-source)). Needs network and `make install`. |
+| `make demo` | The offline end-to-end run described above. |
+| `make test` | The full pytest suite on the host. Integration tests run only if `IRIS_DB_DSN` is set and otherwise skip cleanly. No test needs network. |
+| `make test-integration` | `make up`, then the full suite with `IRIS_DB_DSN` pointed at the compose database. The tests create and drop a throwaway database, so the role needs `CREATEDB` (the compose role has it). |
+| `make harvest` | Incremental run against `SOURCE` (default `oparl`, so **live network**). Example: `make harvest ARGS="--since 2026-10-01 --limit 200"`; `SOURCE=fixture` stays offline. |
+| `make report` | Rebuilds a quality report for the latest run *from stored rows*; `ARGS="--run-id <uuid>"` selects one. It is written to `reports/quality_<run_id>.rebuilt.{md,json}` and never over the report the run wrote itself. The verdict is the one the run recorded when it recorded one; when it cannot be established the verdict is `UNKNOWN` (exit code 3), never an optimistic `PASS`, and an `UNKNOWN` report is not written as `quality_latest`. |
+| `make dashboard` | Read-only Streamlit dashboard on `http://localhost:8501`. Needs `IRIS_DB_DSN` and `pip install -r ui/requirements.txt`; see [Dashboard](#dashboard-read-only). |
+| `make lint` | `ruff check` and `ruff format --check`. |
+| `make typecheck` | `mypy` in strict mode (configured in `pyproject.toml`). |
+| `make format` | Applies ruff formatting and safe autofixes. |
+| `make down` | Stops the stack and keeps the database volume. |
+| `make reset` | Stops the stack and deletes the database volume. |
+
+CLI commands, also usable directly as `iris-harvest <command>` after `make install`:
+`verify-source`, `discover`, `harvest [--since --limit --body --dry-run --strict]`, `report [--run-id]`,
+`validate`. `--dry-run` runs everything up to the sink and writes the report without touching the database.
+
+### Incremental runs: the watermark, `--since` and the page cap
+
+- A body's watermark advances only after a clean sweep of that body. A sweep that stopped early, hit an
+  error, a record `--limit` with unread records left, or the page cap is not clean and leaves the
+  watermark where it was.
+- **`--since` does not advance the watermark unless the window was already covered.** An explicit
+  `--since DATE` may advance a body's watermark only if a watermark is already stored and
+  `DATE <= stored watermark - IRIS_OVERLAP_HOURS`. Otherwise the watermark is held and the run report says
+  `held (explicit --since)` (a held watermark is not a degraded state). Without this rule,
+  `make harvest ARGS="--since 2026-10-01"` on a fresh database would move the watermark to 1 October and
+  every later default run would start there, silently skipping the older backfill.
+- **A body larger than `max_pages_per_body` (default 500 pages) cannot complete a backfill.** Hitting the cap
+  is an unclean stop, so the watermark is held, there is no persisted resume cursor, and every later run
+  starts again at page 1 and never reaches the rest. A run note, written to the report and to
+  `harvest_run.notes`, names the bodies that hit the cap and says so. The remedy today is to raise
+  `IRIS_MAX_PAGES_PER_BODY` for that run.
+
+### Dead letters, validation queries and redirects
+
+- **Dead letters are de-duplicated.** A rejected record seen again (same source, body, record id, reason code
+  and payload hash) bumps `seen_count` and `last_seen_at` on the existing `signal_ingest_reject` row instead
+  of adding a new one; the row keeps the run that first rejected it (migration `002_reject_dedup`). A changed
+  payload or reason is a new rejection. Consequently **validation query 7 shows first sightings only**;
+  per-run totals are in `harvest_run.rejected`.
+- **What the validation queries do and do not prove** (`sql/validation_queries.sql`, run by
+  `iris-harvest validate`). Queries 1, 2, 4 and 10 are *defence in depth*: the DDL already guarantees them
+  (`uq_signal_natural_key`, `geometry(Point, 25832)`, `ck_geo_consistency`, `ck_watermark_not_sentinel`), so
+  they would catch a dropped or weakened constraint, not bad data. Query 3 is a *coarse bounding check*: the
+  numeric EPSG:25832 coordinate domain, not the national outline, so it cannot tell a German point from one in
+  a neighbouring country. Queries **11** (one `source_url` stored under several natural keys), **12**
+  (`ags`/`ars` digit shape) and **15** (a run left in `running` for more than a day) check things the schema
+  cannot prevent, so they can actually fail. Queries 13, 14 and 16 are informational. `validate` also fails
+  when an expected check is missing from the file, when a check cannot run, or when `signal_ingest` is empty,
+  so it cannot pass vacuously.
+- **Redirects are followed by hand, not by the HTTP library.** The client follows 301/302/303/307/308 itself,
+  at most 5 hops (a sixth is an error). Every hop is checked against that origin's `robots.txt` and charged
+  to that host's rate limiter, a non-http(s) target is refused, and the result reports the final URL. The
+  verification probe does not follow redirects at all: it records the 3xx and its `Location` and never
+  requests the target.
+
+### Dashboard (read-only)
+
+`ui/` is a Streamlit + pydeck window onto `iris_staging`. It shows:
+
+- a KPI row: total signals, distinct AGS, signals in the latest run, rejections, and the latest quality
+  verdict;
+- a map of staged signals, coloured by `signal_type`. **Point opacity and size follow `geo_confidence`**: a
+  `high` surveyed coordinate is solid and large, a `low` municipality-centroid guess is faint and small, so a
+  town-level guess never looks like a located project. Rows with no geometry are not drawn but are counted
+  ("N signals have no resolvable location");
+- a provenance panel (`published_at_origin`, `geo_method`, and a `geo_method` by `geo_confidence` crosstab;
+  zero-count categories are shown, not hidden);
+- a filterable signal table with the matched keywords as evidence and a clickable `source_url`;
+- a quality panel: the latest run's funnel, the reject histogram by `reason_code`, the re-run delta of the
+  last two runs, gate findings and a sample of dead-lettered rows.
+
+**It is strictly read-only.** Every query must be a single `SELECT`/`WITH` (anything else is refused before it
+is sent), the connection is opened `read_only=True` with `default_transaction_read_only=on`, so the server
+would refuse a write as well, and `raw_payload` is never selected. The DSN comes from `IRIS_DB_DSN` and is never
+echoed.
+
+```
+.venv/bin/python -m pip install -r ui/requirements.txt
+export IRIS_DB_DSN=postgresql://...      # the same variable the harvester uses
+make dashboard                           # or: .venv/bin/python -m streamlit run ui/app.py
+```
+
+See [`ui/README.md`](ui/README.md). Two caveats: the PASS/WARN/FAIL verdict is read from
+`reports/quality_<run_id>.json` (directory overridable with `IRIS_REPORTS_DIR`) and shows "NOT RECORDED" when
+no such file exists for the latest run, for instance in a container without `./reports` mounted; and the signal
+table is capped at 50,000 rows with a visible notice.
+
+### Sample output and the synthetic corpus (`docs/samples/`)
+
+**Everything in `docs/samples/` is generated from invented data. The corpus is NOT real municipal data.** It
+is produced by `scripts/generate_corpus.py` from a fixed seed (default `20261028`, byte-for-byte
+reproducible) and modelled on the *structure* observed on the live OParl endpoint (see
+[`docs/evidence/`](docs/evidence/README.md)) and the vocabulary of `config/taxonomy.yaml`. Every paper
+title, id, reference number, date and coordinate is made up; only the 15 AGS codes are real, because the geo
+tier-4 lookup needs real keys. It is also deliberately *not* a replica of the live proportions: live, 96 of
+100 papers carry the `modified` sentinel; in the corpus it is rare, so that the date and geo tiers get
+exercised.
+
+- **The corpus:** 761 distinct papers, served as 780 items (16 cross-page duplicates plus 3 malformed items),
+  17 bodies, 48 paper pages. Cassettes are in `tests/fixtures/cassettes/corpus/` (a sub-directory on purpose,
+  so the 13 hand-written scenarios stay pinned).
+- **The clean run:** 265 rows staged (34.8% of distinct papers), 13 records dead-lettered (1.7%), verdict
+  PASS.
+- **The re-run:** the same corpus loaded again gives `inserted=0 updated=0 unchanged=265`, verdict PASS.
+- **The degraded run:** the same papers with faults injected, one body answering HTTP 500 and one page of
+  truncated JSON. Verdict **FAIL** (exit 1): 131 of 707 fetched rejected (18.5%, over the 10% gate), 124
+  staged, and a **rejection histogram of 10 reason codes**. The two failed bodies are named and their
+  watermarks were not advanced, and none of the 131 rejected records is among the staged rows.
+
+The files (CSV extracts, quality reports as `.md` and `.json`, console output, the gazetteer used, the
+generator's labels) and the regeneration commands are listed in
+[`docs/samples/README.md`](docs/samples/README.md). The labels record generator intent, not a gold standard,
+and the intent-versus-outcome table there is a consistency check, not a precision or recall figure.
+
+### Live-probe evidence (`docs/evidence/`)
+
+A small, redacted, truncated capture of the live OParl endpoint, probed read-only on 2026-10-28 (seven
+requests, one at a time, at least two seconds apart, `robots.txt` read first). It exists so the claims in this
+README, the plan and `config/bodies.yaml` can be checked from the repository; `SOURCE_VERIFICATION.md`
+section 8 tabulates each claim against it. The endpoint declares no licence, and absence of a licence is not
+permission: the files are committed as evidence of a protocol observation, not as a dataset, and should not be
+extended or reused as a corpus.
+
+### Configuration
+
+Behaviour comes from environment variables (prefix `IRIS_`) and an optional git-ignored `.env`; copy
+[`.env.example`](.env.example) to start. Domain knowledge (taxonomy, gazetteer, bodies, thresholds)
+lives in versioned files under `config/`. Every run stamps a hash of the non-secret configuration into
+`harvest_run.config_hash`.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `IRIS_SOURCE` | `fixture` | Adapter: `fixture` (offline), `oparl` (live), `ratsdokumente` (briefed endpoint; does not exist). |
+| `IRIS_DB_DSN` | **none, by design** | PostgreSQL DSN. Required by any command that writes. A missing value fails at startup. |
+| `IRIS_DB_SCHEMA` | `iris_staging` | Schema name passed to the sink. The shipped migration creates `iris_staging` literally, so leave this at the default. |
+| `IRIS_TAXONOMY_PATH` | `config/taxonomy.yaml` | Taxonomy file. Point it at another file to change terms, weights or the negation window. |
+| `IRIS_BODIES_PATH` | `config/bodies.yaml` | Source registry: which sources (adapter, System URL, scenario) exist and their verification state. Loaded and validated; it does **not** select bodies (see [Data source](#data-source)). |
+| `IRIS_THRESHOLDS_PATH` | `config/thresholds.yaml` | Quality-gate thresholds. |
+| `IRIS_FIXTURE_DIR` | `tests/fixtures/cassettes` | Cassette directory for the fixture adapter. |
+| `IRIS_RATE_LIMIT_RPS` | `1.0` | Requests per second per host (0 to 50). Shrinks for the rest of a run after a 429. |
+| `IRIS_MAX_CONCURRENT_BODIES` | `4` | Bodies swept concurrently; serial within a body. |
+| `IRIS_REQUEST_TIMEOUT_S` | `30` | HTTP timeout, seconds. |
+| `IRIS_MAX_RETRIES` | `4` | Retries on retryable errors. Never applied to `AccessRestricted`. |
+| `IRIS_USER_AGENT` | `ProjectIris-Harvester/0.1 (+mailto:ops@example.org)` | A placeholder. Must contain `mailto:<address>` or an `http(s)://` URL, else startup fails. Set an address that reaches you before any live run. |
+| `IRIS_RESPECT_ROBOTS` | `true` | Fetch and honour `robots.txt` and `Crawl-delay`. |
+| `IRIS_OVERLAP_HOURS` | `24` | How far before the watermark to re-request. Councils back-date edits; content hashing makes the overlap free. |
+| `IRIS_MAX_PAGES_PER_BODY` | `500` | Hard page cap per body. A body that hits it cannot complete a backfill (see [Incremental runs](#incremental-runs-the-watermark---since-and-the-page-cap)). |
+| `IRIS_ZERO_YIELD_PAGES_BEFORE_STOP` | `2` | Consecutive pages with nothing new before a body sweep stops. |
+| `IRIS_MIN_PLAUSIBLE_YEAR` | `1990` | Earlier dates are malformed. |
+| `IRIS_MAX_FUTURE_DAYS` | `400` | Dates further ahead are malformed. |
+| `IRIS_SOURCE_TIMEZONE` | `Europe/Berlin` | Zone assumed for naive timestamps. |
+| `IRIS_MUNICIPALITY_TOLERANCE_M` | `2000` | Buffer around a municipality polygon for the containment check, metres. |
+| `IRIS_STRICT` | `false` | CI mode: any record-level rejection fails the run. |
+| `IRIS_LOG_LEVEL` | `INFO` | Log verbosity. |
+| `IRIS_REPORT_DIR` | `reports` | Where quality reports are written. (The dashboard has its own `IRIS_REPORTS_DIR`, plural, for reading them.) |
+| `IRIS_ENABLE_LLM_RERANK` | `false` | Reserved. Nothing reads it yet. |
+| `IRIS_POSTGRES_USER` / `_PASSWORD` / `_DB` | `iris` / `iris_local` / `iris` | Compose only: credentials of the throwaway local database container. |
+| `IRIS_DB_HOST_PORT` | `5433` | Compose only: host port for the container, bound to `127.0.0.1`. |
+
+### Where secrets come from
+
+Nothing secret is in source control, and the application has no default DSN. `IRIS_DB_DSN` is read
+from the process environment or a git-ignored `.env`. In compose, the harvester container receives a
+DSN assembled from the `IRIS_POSTGRES_*` values for the local container only; the defaults there are
+throwaway values that protect nothing outside your machine, and the port is bound to loopback. For any
+real database, export `IRIS_DB_DSN` from your secret store.
+
+This is enforced rather than promised: CI runs `gitleaks` over the full git history on every push and
+pull request and fails the build on any finding.
+
+### Layout
+
+```
+src/iris_signal_harvester/   adapters/ domain/ (taxonomy, dates, hashing, geo/) http/ sink/ reporting/ cli.py
+config/                      taxonomy.yaml, gazetteer.json, bodies.yaml, thresholds.yaml
+config/document_types.yaml   controlled document-type vocabulary (see Document types)
+migrations/                  plain SQL, applied by iris_signal_harvester.sink.migrate (no Alembic)
+sql/validation_queries.sql   numbered queries a reviewer can run without reading Python
+tests/fixtures/cassettes/    committed replay fixtures, one per named failure and edge scenario;
+                             corpus/ holds the generated synthetic corpus
+ui/                          read-only Streamlit + pydeck dashboard
+docs/samples/                generated sample output and quality reports (synthetic data)
+docs/evidence/               redacted capture of the live OParl endpoint (2026-10-28)
+scripts/                     demo_delta.sh, verify_source.sh, generate_corpus.py, make_samples.py
+```
+
+The migration runner records a checksum per applied file and refuses to continue if an applied file was
+edited, so schema history is append-only. The Docker image keeps a source-checkout layout (package
+installed in editable mode under `/app/src`, `migrations/` at `/app/migrations`) because
+`default_migrations_dir()` resolves relative to the source tree; the image build fails if that stops
+being true.
+
+## Known limitations
+
+These are stated plainly because they affect how far the output can be trusted.
+
+**No recall or precision figures are claimed.** No labelled evaluation set exists yet, so any such
+number would be invented. The taxonomy weights, the field weights, the breadth bonus and the 0.35
+emission threshold are hand-set. `relevance_score` is an explainable heuristic score; it is not a
+calibrated probability and should not be read as one. The test suite shows the matcher does what it is
+specified to do on constructed cases. It does not show how often that is the right thing on real
+documents.
+
+**OParl coverage is uneven.** Systems differ in which fields they fill in. Expect missing dates, missing
+licences, missing AGS and no `location` at all: on the 2026-10-28 capture of the one live endpoint, 1 of 26
+bodies declared an `ags`, no body declared a licence, and none of the first 100 papers of `body/1` had a
+`date` or a `location`. That capture also suggests, without proving it, that papers whose `modified` is the
+sentinel come back from unfiltered requests but not from `modified_since` ones (none of the papers on the
+filtered first pages carried it), so such papers may be reachable only by a full backfill. The pipeline reports completeness and date and geo
+provenance as metrics rather than assuming them, but it cannot fix a source that does not publish
+the data. Only OParl 1.0 and 1.1 are accepted; other versions are refused. The committed fixtures are
+anonymised, synthetic cassettes shaped after the live probe. CI never touches the network, so
+behaviour against a live server is only as good as that probe.
+
+**Rural geocoding is weak.** Papers on the probed OParl endpoint carry no coordinates, tier 2 (cadastre) needs an
+ALKIS/WFS endpoint that is not wired up, and tier 3 (address) has no geocoder behind it. In practice
+almost everything resolves to the municipality centroid, labelled `low`, which says which town a
+document concerns and nothing about where in it. That tier also works only for AGS values in the
+gazetteer, which is 9 cities in the demo set with crude polygons. For any other municipality the
+record is `unresolved`. A real run needs the BKG VG250 boundaries loaded into the gazetteer.
+
+**The national envelope is a coarse approximation, not VG250, and it errs in both directions.**
+*False accepts:* a point just across a border can pass; Salzburg, Kufstein, Venlo, Heerlen, Eupen,
+Enschede, Zgorzelec, Słubice, Padborg and Basel all pass, and the outline reaches less than about 10 km into
+Denmark. *False rejects:* a real German place near the edge of the outline can be rejected and dead-lettered
+as `geo_outside_national_envelope`, which is data loss for that record. A review found Kehl, Rheinau,
+Willstätt, Neuried, Lindau, Borkum and Helgoland wrongly rejected; the outline was widened and 31 real
+German places are now regression-tested to pass, but the margin at the Rhine and the Danish border is only
+about 2 km, so places closer to the edge than that are not guaranteed. The municipality containment check is
+only as good as the polygon behind it, and the demo polygons are 12-sided approximations.
+
+**The compound matcher is a documented heuristic, not a decompounder.** German forms compounds freely.
+The matcher folds umlauts, treats hyphens and spaces as optional, and lets a term that is flagged as
+compound match as the head of a longer word with a bounded suffix (up to 20 letters), so `Solarpark` is
+found in `Solarparkerweiterung`. There is no morphology. It anchors on the left of a word, so a term does
+not match when it is the tail of a longer compound (`Freiflächensolarpark` needs its own entry), and
+vocabulary the taxonomy does not list is not found.
+
+**The negation window can suppress legitimate documents.** A hit is dropped when a negation term
+(`Ablehnung`, `Aufhebung`, `Rückbau`, `Rücknahme`, `kein`, `Verzicht` and inflections) appears within
+four tokens on either side. The window is token-based and ignores sentence boundaries. It correctly
+removes `Ablehnung des Solarparks`, but it also removes `Aufhebung des Bebauungsplans`, a repeal that
+is a genuine land-use event, and can remove a hit when a negation in the previous sentence happens to
+fall within the window. If nothing else in the document matches, the document produces no signal. The
+matcher can report which hits it suppressed, so this cost can be measured once labelled data exists,
+but it is not corrected for. The window also fails the other way: on the synthetic corpus the matcher
+**staged three "Ablehnung des Antrags auf Errichtung eines Solarparks ..." titles**, because the negation
+sits five tokens from the hit and the window is four. Those are rejections of a solar park and should not
+have been signals.
+
+**PDF attachment text is out of scope.** Only the metadata OParl exposes about a paper is analysed.
+Papers whose relevant content is only inside an attached PDF will be missed or scored low.
+
+**Cross-source duplicates are not detected and not merged.** The same document published by two sources, or
+under two bodies, is two rows, because the natural key includes `source_system` and `source_body_id`.
+Nothing looks for them: no query, report section or code compares titles or dates across sources. The one
+related check is validation query 11, which catches the same `source_url` stored under several keys; the same
+document under different URLs goes unnoticed. Nothing is auto-merged, since a wrong merge destroys
+provenance and a missed one is only noise.
+
+**Rows are never retired.** The adapter ignores OParl's `deleted` flag, and a document that stops matching
+(an edited title, a new taxonomy) keeps its old `signal_type` and `relevance_score`; it is distinguishable
+only by an ageing `last_seen_at`.
+
+**`raw_payload` can lag the source.** It is excluded from the content hash (see above), so when a source
+changes only fields that do not affect any derived column, the stored payload keeps the older version
+until some semantic field changes. The row is correct for every derived column but is not a mirror of
+the source. The same exclusion means a record whose `modified` moved and nothing else is correctly left
+alone.
+
+**Incremental behaviour cannot be demonstrated offline.** The fixture adapter ignores `modified_since`
+and always replays the whole cassette. The offline demo proves idempotency (identical input changes
+nothing); it does not exercise watermark advance, the overlap window, or server-side filtering. Those
+are covered by unit and integration tests, not by `make demo`.
+
+**Dates before 1990 reject the whole record**, not just the date, because an implausible date is treated
+as malformed. That is right for the sentinel values seen in the wild and wrong for genuinely old archive
+documents; adjust `IRIS_MIN_PLAUSIBLE_YEAR` if you need them.
+
+**The briefed `/api/search` adapter is unverified.** Its request and response shape is a reconstruction.
+It is tested only against mocks and is not evidence that any such service exists.
+
+**Operational scope.** This is a staging harvester: no scheduler, no metrics endpoint, and the PostGIS
+sink rewrites `last_seen_at` for every re-observed row on every run, which is cheap per row but will
+want autovacuum attention at large volumes.

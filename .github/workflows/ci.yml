@@ -1,0 +1,121 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Throwaway credentials for the ephemeral CI database container only.
+  CI_PG_USER: postgres
+  CI_PG_PASSWORD: ci_only
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Static checks and tests. Unit tests run with NO database and NO network;
+  # integration tests then run against a real PostGIS service container.
+  # ---------------------------------------------------------------------------
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_only
+          POSTGRES_DB: iris
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d iris"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: python -m pip install -e ".[dev]"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+      - name: mypy (strict, configured in pyproject.toml)
+        run: mypy
+
+      - name: "Unit tests (offline - no database, no network)"
+        run: pytest -m "not integration" -q
+
+      - name: Integration tests (PostGIS service container)
+        env:
+          # The tests create and drop a throwaway database from this DSN, so the role needs CREATEDB.
+          IRIS_DB_DSN: postgresql://${{ env.CI_PG_USER }}:${{ env.CI_PG_PASSWORD }}@localhost:5432/iris
+        run: pytest -m integration -q -rs
+
+  # ---------------------------------------------------------------------------
+  # The reviewer's entry point, exercised exactly as documented.
+  # ---------------------------------------------------------------------------
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: "make demo (fixtures only; asserts 0 inserts and 0 updates on pass 2)"
+        run: make demo
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-reports
+          path: reports/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # The brief requires no credentials in source code. This job is what enforces
+  # that mechanically: it scans the full git history, not just the tip.
+  # ---------------------------------------------------------------------------
+  secrets-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITLEAKS_VERSION: "8.21.2"
+      # sha256 of gitleaks_8.21.2_linux_x64.tar.gz, from the release's published checksums file.
+      GITLEAKS_SHA256: 5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks (pinned, checksum-verified)
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check -
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+
+      - name: "gitleaks detect (full history; any finding fails the build)"
+        run: gitleaks detect --source . --redact --verbose --exit-code 1

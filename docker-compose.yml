@@ -1,0 +1,77 @@
+# iris-signal-harvester — local stack: PostGIS + one-shot migration + harvester CLI.
+#
+#   db        postgis/postgis:16-3.4, published on 127.0.0.1 only.
+#   migrate   one-shot: applies migrations/*.sql (idempotent, checksum-guarded) and exits.
+#   harvester the CLI. Run with `docker compose run --rm harvester <command>`; it depends on
+#             `migrate`, so migrations are applied every time it starts.
+#
+# Credentials: nothing secret is committed. The database user/password/name come from the
+# environment (or a git-ignored .env) and fall back to throwaway values that only create and
+# reach the local container. Override them with IRIS_POSTGRES_* if you share the machine.
+
+name: iris-signal-harvester
+
+x-db-dsn: &db-dsn
+  IRIS_DB_DSN: postgresql://${IRIS_POSTGRES_USER:-iris}:${IRIS_POSTGRES_PASSWORD:-iris_local}@db:5432/${IRIS_POSTGRES_DB:-iris}
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: ${IRIS_POSTGRES_USER:-iris}
+      POSTGRES_PASSWORD: ${IRIS_POSTGRES_PASSWORD:-iris_local}
+      POSTGRES_DB: ${IRIS_POSTGRES_DB:-iris}
+    ports:
+      # Loopback only: the demo database must not be reachable from the network.
+      - "127.0.0.1:${IRIS_DB_HOST_PORT:-5433}:5432"
+    volumes:
+      - iris-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+      # The image starts slowly under amd64 emulation on Apple silicon.
+      start_period: 30s
+    restart: unless-stopped
+
+  migrate:
+    build:
+      context: .
+    image: iris-signal-harvester:local
+    entrypoint: ["python", "-m", "iris_signal_harvester.sink.migrate"]
+    command: []
+    environment:
+      <<: *db-dsn
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  harvester:
+    build:
+      context: .
+    image: iris-signal-harvester:local
+    # Only started explicitly (`docker compose run harvester ...`), never by a bare `up`.
+    profiles: ["tools"]
+    # Write reports as the invoking host user so ./reports is not left root-owned.
+    # Falls back to the image's unprivileged uid when HOST_UID/HOST_GID are unset.
+    user: "${HOST_UID:-10001}:${HOST_GID:-10001}"
+    environment:
+      <<: *db-dsn
+      # Offline by default. `make harvest` sets IRIS_SOURCE=oparl for a live run.
+      IRIS_SOURCE: ${IRIS_SOURCE:-fixture}
+    env_file:
+      # Optional tuning knobs (IRIS_RATE_LIMIT_RPS, IRIS_USER_AGENT, ...) from a git-ignored .env.
+      # `required: false` lets a fresh checkout run without one.
+      - path: .env
+        required: false
+    volumes:
+      - ./reports:/app/reports
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
+volumes:
+  iris-pgdata:

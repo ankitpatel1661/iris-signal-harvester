@@ -1,0 +1,14 @@
+# Matches ui/theme.py (PRIMARY, BACKGROUND, CARD, TEXT) and ui/assets/styles.css.
+[theme]
+base = "light"
+primaryColor = "#2563EB"
+backgroundColor = "#F4F7FC"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#111827"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false

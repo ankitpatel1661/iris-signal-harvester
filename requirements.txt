@@ -1,0 +1,8 @@
+# Exists for Streamlit Community Cloud, which installs from a requirements.txt at the
+# repository root. It is the dashboard's dependency set (identical to ui/requirements.txt);
+# the harvester package's own dependencies live in pyproject.toml and are not needed here.
+streamlit>=1.50.0
+pydeck>=0.9.0
+plotly>=5.17.0
+pandas>=2.1.0
+psycopg[binary]>=3.1
