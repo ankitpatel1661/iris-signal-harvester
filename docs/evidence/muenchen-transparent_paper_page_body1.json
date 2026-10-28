@@ -1,0 +1,66 @@
+{
+  "_capture": {
+    "url": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper",
+    "http_status": 200,
+    "server_date": "Wed, 28 Oct 2026 08:57:18 GMT",
+    "content_type": "application/json",
+    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:ops@example.org)",
+    "probed_on": "2026-10-28",
+    "method": "GET (read-only, one request at a time, >=2 s apart)",
+    "redactions": [
+      "only 20 of the 100 papers kept (the first 16 plus the papers on the page whose 'modified' is not the sentinel); titles truncated to 48 characters; originator*, underDirectionOf, auxiliaryFile and relatedPaper dropped; 'date' and 'location' are ABSENT KEYS in the served objects, not nulls"
+    ]
+  },
+  "_statistics_over_full_page": {
+    "papers_on_page": 100,
+    "papers_with_date_key": 0,
+    "papers_with_location_key": 0,
+    "papers_with_sentinel_modified": 96,
+    "papers_with_sentinel_created": 96,
+    "papers_with_valid_modified": 4,
+    "paperType_counts": {
+      "BA-Antrag": 95,
+      "Stadtratsvorlage": 5
+    },
+    "keys_seen_on_any_paper": [
+      "auxiliaryFile",
+      "body",
+      "created",
+      "id",
+      "keyword",
+      "modified",
+      "name",
+      "originatorOrganization",
+      "originatorPerson",
+      "paperType",
+      "reference",
+      "relatedPaper",
+      "type",
+      "underDirectionOf",
+      "web"
+    ]
+  },
+  "pagination": {
+    "elementsPerPage": 100,
+    "totalPages": 15
+  },
+  "links": {
+    "first": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper",
+    "next": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper?id=1301812"
+  },
+  "record_shape_only": {
+    "_why": "The publisher's records are NOT redistributed. This endpoint declares no licence, and this project's own rule is that an undeclared licence is never assumed permissive. Every factual claim our documentation makes about this endpoint is evidenced by the aggregate counts above, not by record content. What is kept here is the SHAPE - key names and value types - because that is what the adapter was written against.",
+    "records_observed": 20,
+    "example_shape": {
+      "id": "<str>",
+      "type": "https://schema.oparl.org/1.0/Paper",
+      "body": "<str>",
+      "name": "<str>",
+      "reference": "<str>",
+      "paperType": "<str>",
+      "keyword": "<list[0]>",
+      "created": "<str>",
+      "modified": "<str>"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+reason_code,source_body_id,source_record_id,seen_count,reason_detail
+date_out_of_range,https://oparl.example.org/oparl/v1.0/body/5,https://oparl.example.org/oparl/v1.0/paper/48896,2,year 1850 in '1850-03-01' is before min_plausible_year=1990
+date_unparseable,https://oparl.example.org/oparl/v1.0/body/11,https://oparl.example.org/oparl/v1.0/paper/91118,2,cannot parse '31.02.2026': day is out of range for month
+geo_latlon_in_projected_field,https://oparl.example.org/oparl/v1.0/body/7,https://oparl.example.org/oparl/v1.0/paper/61196,2,"(x=13.7373, y=51.0504) looks like longitude/latitude (or a zero placeholder) written into a projected-coordinate field; a real EPSG:25832 easting is a six-digit number"
+geo_latlon_in_projected_field,https://oparl.example.org/oparl/v1.0/body/7,https://oparl.example.org/oparl/v1.0/paper/65491,2,"(x=0.0, y=0.0) looks like longitude/latitude (or a zero placeholder) written into a projected-coordinate field; a real EPSG:25832 easting is a six-digit number"
+geo_latlon_in_projected_field,https://oparl.example.org/oparl/v1.0/body/8,https://oparl.example.org/oparl/v1.0/paper/72260,2,"(x=12.3731, y=51.3397) looks like longitude/latitude (or a zero placeholder) written into a projected-coordinate field; a real EPSG:25832 easting is a six-digit number"
+geo_out_of_crs_domain,https://oparl.example.org/oparl/v1.0/body/1,https://oparl.example.org/oparl/v1.0/paper/9907,2,"(x=-45210.5, y=5300000.0) is outside the EPSG:25832 domain E(265000.0, 935000.0) N(5200000.0, 6120000.0)"
+geo_out_of_crs_domain,https://oparl.example.org/oparl/v1.0/body/11,https://oparl.example.org/oparl/v1.0/paper/93395,2,"(x=1234567.0, y=9876543.0) is outside the EPSG:25832 domain E(265000.0, 935000.0) N(5200000.0, 6120000.0)"
+geo_out_of_crs_domain,https://oparl.example.org/oparl/v1.0/body/4,https://oparl.example.org/oparl/v1.0/paper/40912,2,"(x=2999999.0, y=6000000.0) is outside the EPSG:25832 domain E(265000.0, 935000.0) N(5200000.0, 6120000.0)"
+missing_required_field,https://oparl.example.org/oparl/v1.0/body/11,,2,adapter could not build a RawDocument from this record (missing_required_field)
+missing_required_field,https://oparl.example.org/oparl/v1.0/body/14,https://oparl.example.org/oparl/v1.0/paper/107954,2,"no usable title: none of name, title, subject carries text in the payload"
+missing_required_field,https://oparl.example.org/oparl/v1.0/body/3,https://oparl.example.org/oparl/v1.0/paper/25452,2,"no usable title: none of name, title, subject carries text in the payload"
+missing_required_field,https://oparl.example.org/oparl/v1.0/body/6,,2,adapter could not build a RawDocument from this record (missing_required_field)
+schema_validation_failed,https://oparl.example.org/oparl/v1.0/body/3,,2,adapter could not build a RawDocument from this record (schema_validation_failed)

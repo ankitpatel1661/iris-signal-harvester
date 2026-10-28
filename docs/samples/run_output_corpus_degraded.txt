@@ -1,0 +1,21 @@
+migrations: applied: 001_initial, 002_reject_dedup
+
+run        56f728c4-bd71-489f-abda-f92d3f1db931
+status     degraded
+funnel     fetched=707 malformed=3 rejected=128 below_threshold=438 duplicates=14 staged=124
+load       inserted=124 updated=0 unchanged=0
+  FAIL: reject_rate_max — 131 of 707 fetched records were dead-lettered (18.5% > 10.0%) [Potsdam (synthetisch) (https://oparl.example.org/oparl/v1.0/body/14), München (synthetisch) (https://oparl.example.org/oparl/v1.0/body/1), Nürnberg (synthetisch) (https://oparl.example.org/oparl/v1.0/body/11), Essen (synthetisch) (https://oparl.example.org/oparl/v1.0/body/13), Frankfurt am Main (synthetisch) (https://oparl.example.org/oparl/v1.0/body/5)]
+  WARN: degraded_body_rate_max — 2 body/bodies degraded; their watermarks were not advanced, so the window will be retried rather than skipped [Stuttgart (synthetisch) (https://oparl.example.org/oparl/v1.0/body/6), Düsseldorf (synthetisch) (https://oparl.example.org/oparl/v1.0/body/9)]
+  WARN: body_error — source_unavailable: HTTP 200 from https://oparl.example.org/oparl/v1.0/body/6/list/paper?id=55716 with unparseable JSON body: Unterminated string starting at: line 1 column 8604 (char 8603) [Stuttgart (synthetisch) (https://oparl.example.org/oparl/v1.0/body/6)]
+  WARN: body_error — source_unavailable: HTTP 500 from https://oparl.example.org/oparl/v1.0/body/9/list/paper [Düsseldorf (synthetisch) (https://oparl.example.org/oparl/v1.0/body/9)]
+verdict    FAIL
+(exit code 1)
+
+--- iris-harvest validate ---
+  ok      1. No duplicates on the natural key.  MUST return zero rows.
+  ok      2. Every geometry is stored in EPSG:25832.  MUST return zero rows.
+  ok      3. Every geometry lies inside the EPSG:25832 coordinate domain.  MUST return zero rows.
+  ok      4. Confidence labelling is consistent with geometry presence.  MUST return zero rows.
+  ok     10. Watermark health — a corrupt `modified` must never have poisoned a watermark.
+5 invariant(s) checked, 0 violated
+(exit code 0)

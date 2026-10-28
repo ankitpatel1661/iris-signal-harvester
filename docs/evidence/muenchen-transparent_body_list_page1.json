@@ -1,0 +1,45 @@
+{
+  "_capture": {
+    "url": "https://www.muenchen-transparent.de/oparl/v1.0/list/body",
+    "http_status": 200,
+    "server_date": "Wed, 28 Oct 2026 08:56:51 GMT",
+    "content_type": "application/json",
+    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:ops@example.org)",
+    "probed_on": "2026-10-28",
+    "method": "GET (read-only, one request at a time, >=2 s apart)",
+    "redactions": [
+      "contactEmail/contactName/website/web/organization/person/meeting links and legislativeTerm arrays dropped from each Body (replaced by a count). Keys are otherwise exactly as served: 'license' and, on 25 of 26 bodies, 'ags' and 'rgs' are ABSENT in the served object, not null."
+    ]
+  },
+  "_statistics_over_full_page": {
+    "bodies_total": 26,
+    "bodies_with_license_key": 0,
+    "bodies_where_license_is_absent_or_null": 26,
+    "bodies_with_ags": 1,
+    "bodies_without_ags": 25
+  },
+  "pagination": {
+    "totalPages": 1,
+    "currentPages": 1
+  },
+  "links": {
+    "first": "https://www.muenchen-transparent.de/oparl/v1.0/list/body",
+    "last": "https://www.muenchen-transparent.de/oparl/v1.0/list/body"
+  },
+  "record_shape_only": {
+    "_why": "The publisher's records are NOT redistributed. This endpoint declares no licence, and this project's own rule is that an undeclared licence is never assumed permissive. Every factual claim our documentation makes about this endpoint is evidenced by the aggregate counts above, not by record content. What is kept here is the SHAPE - key names and value types - because that is what the adapter was written against.",
+    "records_observed": 26,
+    "example_shape": {
+      "id": "<str>",
+      "type": "https://schema.oparl.org/1.0/Body",
+      "name": "<str>",
+      "shortName": "<str>",
+      "ags": "<str>",
+      "rgs": "<str>",
+      "paper": "<str>",
+      "created": "<str>",
+      "modified": "<str>",
+      "_legislativeTerm_count": "<int>"
+    }
+  }
+}

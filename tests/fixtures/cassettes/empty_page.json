@@ -1,0 +1,77 @@
+{
+  "cassette_version": 1,
+  "scenario": "empty_page",
+  "description": "A legitimate end-of-collection: empty data array and no links.next.",
+  "system_url": "https://oparl.example.org/oparl/v1.0",
+  "interactions": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://oparl.example.org/oparl/v1.0"
+      },
+      "response": {
+        "status": 200,
+        "json": {
+          "id": "https://oparl.example.org/oparl/v1.0",
+          "type": "https://schema.oparl.org/1.0/System",
+          "oparlVersion": "https://schema.oparl.org/1.0/",
+          "name": "Beispiel-Ratsinformationssystem (anonymisiert)",
+          "contactEmail": "ris-kontakt@example.org",
+          "body": "https://oparl.example.org/oparl/v1.0/list/body"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://oparl.example.org/oparl/v1.0/list/body"
+      },
+      "response": {
+        "status": 200,
+        "json": {
+          "data": [
+            {
+              "id": "https://oparl.example.org/oparl/v1.0/body/1",
+              "type": "https://schema.oparl.org/1.0/Body",
+              "name": "Musterstadt",
+              "shortName": "Musterstadt",
+              "ags": "09162000",
+              "rgs": "091620000000",
+              "paper": "https://oparl.example.org/oparl/v1.0/body/1/list/paper",
+              "created": "2020-01-01T00:00:00+01:00",
+              "modified": "2026-09-30T08:15:00+02:00",
+              "license": null,
+              "web": "https://musterstadt.example.org/ris"
+            }
+          ],
+          "pagination": {
+            "elementsPerPage": 100,
+            "totalPages": 1
+          },
+          "links": {
+            "first": "https://oparl.example.org/oparl/v1.0/list/body"
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://oparl.example.org/oparl/v1.0/body/1/list/paper"
+      },
+      "response": {
+        "status": 200,
+        "json": {
+          "data": [],
+          "pagination": {
+            "elementsPerPage": 100,
+            "totalPages": 1
+          },
+          "links": {
+            "first": "https://oparl.example.org/oparl/v1.0/body/1/list/paper"
+          }
+        }
+      }
+    }
+  ]
+}

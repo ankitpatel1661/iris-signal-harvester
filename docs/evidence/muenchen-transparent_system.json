@@ -1,0 +1,28 @@
+{
+  "_capture": {
+    "url": "https://www.muenchen-transparent.de/oparl/v1.0",
+    "http_status": 200,
+    "server_date": "Wed, 28 Oct 2026 08:56:43 GMT",
+    "content_type": "application/json",
+    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:ops@example.org)",
+    "probed_on": "2026-10-28",
+    "method": "GET (read-only, one request at a time, >=2 s apart)",
+    "redactions": [
+      "contactEmail replaced with [redacted]"
+    ]
+  },
+  "response": {
+    "id": "https://www.muenchen-transparent.de/oparl/v1.0",
+    "type": "https://schema.oparl.org/1.0/System",
+    "oparlVersion": "https://schema.oparl.org/1.0/",
+    "otherOparlVersions": [],
+    "body": "https://www.muenchen-transparent.de/oparl/v1.0/list/body",
+    "name": "München Transparent",
+    "contactEmail": "[redacted]",
+    "contactName": "München Transparent",
+    "website": "https://www.muenchen-transparent.de",
+    "vendor": "https://github.com/codeformunich/Muenchen-Transparent",
+    "product": "https://www.muenchen-transparent.de/infos/api",
+    "web": "https://www.muenchen-transparent.de"
+  }
+}

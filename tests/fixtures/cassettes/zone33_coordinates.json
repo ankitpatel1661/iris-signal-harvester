@@ -1,0 +1,100 @@
+{
+  "cassette_version": 1,
+  "scenario": "zone33_coordinates",
+  "description": "The same point as the valid control, expressed in EPSG:25833; must be reprojected, not rejected.",
+  "system_url": "https://oparl.example.org/oparl/v1.0",
+  "interactions": [
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://oparl.example.org/oparl/v1.0"
+      },
+      "response": {
+        "status": 200,
+        "json": {
+          "id": "https://oparl.example.org/oparl/v1.0",
+          "type": "https://schema.oparl.org/1.0/System",
+          "oparlVersion": "https://schema.oparl.org/1.0/",
+          "name": "Beispiel-Ratsinformationssystem (anonymisiert)",
+          "contactEmail": "ris-kontakt@example.org",
+          "body": "https://oparl.example.org/oparl/v1.0/list/body"
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://oparl.example.org/oparl/v1.0/list/body"
+      },
+      "response": {
+        "status": 200,
+        "json": {
+          "data": [
+            {
+              "id": "https://oparl.example.org/oparl/v1.0/body/1",
+              "type": "https://schema.oparl.org/1.0/Body",
+              "name": "Musterstadt",
+              "shortName": "Musterstadt",
+              "ags": "09162000",
+              "rgs": "091620000000",
+              "paper": "https://oparl.example.org/oparl/v1.0/body/1/list/paper",
+              "created": "2020-01-01T00:00:00+01:00",
+              "modified": "2026-09-30T08:15:00+02:00",
+              "license": null,
+              "web": "https://musterstadt.example.org/ris"
+            }
+          ],
+          "pagination": {
+            "elementsPerPage": 100,
+            "totalPages": 1
+          },
+          "links": {
+            "first": "https://oparl.example.org/oparl/v1.0/list/body"
+          }
+        }
+      }
+    },
+    {
+      "request": {
+        "method": "GET",
+        "url": "https://oparl.example.org/oparl/v1.0/body/1/list/paper"
+      },
+      "response": {
+        "status": 200,
+        "json": {
+          "data": [
+            {
+              "id": "https://oparl.example.org/oparl/v1.0/paper/1000",
+              "type": "https://schema.oparl.org/1.0/Paper",
+              "reference": "01-20/B00001",
+              "name": "Antrag: Freiflächen-Photovoltaikanlage an der Musterstraße",
+              "paperType": "BA-Antrag",
+              "date": "2026-05-12",
+              "created": "2026-03-01T10:00:00+01:00",
+              "modified": "2026-06-01T09:00:00+02:00",
+              "body": "https://oparl.example.org/oparl/v1.0/body/1",
+              "keyword": [
+                "Energie",
+                "Infrastruktur"
+              ],
+              "web": "https://oparl.example.org/ris/paper/1000",
+              "location": {
+                "x": 245249.44,
+                "y": 5337222.41,
+                "crs": "EPSG:25833",
+                "description": "zone 33 input"
+              }
+            }
+          ],
+          "pagination": {
+            "elementsPerPage": 100,
+            "totalPages": 1
+          },
+          "links": {
+            "first": "https://oparl.example.org/oparl/v1.0/body/1/list/paper"
+          }
+        }
+      }
+    }
+  ]
+}

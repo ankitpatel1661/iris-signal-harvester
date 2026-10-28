@@ -1,0 +1,25 @@
+migrations: applied: 001_initial, 002_reject_dedup
+
+run        81fb70d0-7065-45f6-8a1e-633fca7a36a1
+status     success
+funnel     fetched=780 malformed=3 rejected=10 below_threshold=486 duplicates=16 staged=265
+load       inserted=265 updated=0 unchanged=0
+verdict    PASS
+(exit code 0)
+
+--- second pass over identical input ---
+run        c16f6580-b8ca-42bf-9025-ce19f41ef1ec
+status     success
+funnel     fetched=780 malformed=3 rejected=10 below_threshold=486 duplicates=16 staged=265
+load       inserted=0 updated=0 unchanged=265
+verdict    PASS
+(exit code 0)
+
+--- iris-harvest validate ---
+  ok      1. No duplicates on the natural key.  MUST return zero rows.
+  ok      2. Every geometry is stored in EPSG:25832.  MUST return zero rows.
+  ok      3. Every geometry lies inside the EPSG:25832 coordinate domain.  MUST return zero rows.
+  ok      4. Confidence labelling is consistent with geometry presence.  MUST return zero rows.
+  ok     10. Watermark health — a corrupt `modified` must never have poisoned a watermark.
+5 invariant(s) checked, 0 violated
+(exit code 0)

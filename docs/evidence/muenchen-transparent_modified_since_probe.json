@@ -1,0 +1,77 @@
+{
+  "_capture": {
+    "what": "Live OParl endpoint behaviours that this project's documentation asserts.",
+    "endpoint": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper",
+    "probed_on": "2026-10-28",
+    "probed_at_utc": "2026-10-28T09:23:54Z",
+    "server_date_header": "Wed, 28 Oct 2026 09:23:40 GMT",
+    "http_status": 200,
+    "method": "read-only GET, one request at a time, >=1.5s apart, identifying User-Agent",
+    "redactions": "pagination metadata and aggregate counts only; no paper content is redistributed",
+    "licence_declared_by_endpoint": null,
+    "caveat": "Counts are point-in-time; the endpoint's data changes. The INVARIANT evidenced is that modified_since is honoured and narrows the result set monotonically as the cutoff moves forward."
+  },
+  "unfiltered_page_1": {
+    "papers_on_page": 100,
+    "pagination": {
+      "elementsPerPage": 100,
+      "totalPages": 15
+    },
+    "papers_with_sentinel_modified": 96,
+    "papers_with_sentinel_created": 96,
+    "papers_with_date_key_absent": 100,
+    "papers_with_date_key_present_but_null": 0,
+    "papers_with_location_key_absent": 100,
+    "sentinel_value": "-0001-11-30T00:00:00+00:53"
+  },
+  "modified_since_observations": [
+    {
+      "modified_since": null,
+      "request_url": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper",
+      "items_on_page_1": 100,
+      "elementsPerPage": 100,
+      "totalPages": 15,
+      "links_next_present": true
+    },
+    {
+      "modified_since": "2016-01-01",
+      "request_url": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper?modified_since=2016-01-01T00:00:00%2B00:00",
+      "items_on_page_1": 100,
+      "elementsPerPage": 100,
+      "totalPages": 9,
+      "links_next_present": true
+    },
+    {
+      "modified_since": "2020-01-01",
+      "request_url": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper?modified_since=2020-01-01T00:00:00%2B00:00",
+      "items_on_page_1": 100,
+      "elementsPerPage": 100,
+      "totalPages": 8,
+      "links_next_present": true
+    },
+    {
+      "modified_since": "2025-01-01",
+      "request_url": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper?modified_since=2025-01-01T00:00:00%2B00:00",
+      "items_on_page_1": 100,
+      "elementsPerPage": 100,
+      "totalPages": 3,
+      "links_next_present": true
+    },
+    {
+      "modified_since": "2026-01-01",
+      "request_url": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper?modified_since=2026-01-01T00:00:00%2B00:00",
+      "items_on_page_1": 80,
+      "elementsPerPage": 100,
+      "totalPages": 1,
+      "links_next_present": false
+    },
+    {
+      "modified_since": "2026-06-01",
+      "request_url": "https://www.muenchen-transparent.de/oparl/v1.0/body/1/list/paper?modified_since=2026-06-01T00:00:00%2B00:00",
+      "items_on_page_1": 45,
+      "elementsPerPage": 100,
+      "totalPages": 1,
+      "links_next_present": false
+    }
+  ]
+}

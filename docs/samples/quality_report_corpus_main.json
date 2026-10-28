@@ -1,0 +1,675 @@
+{
+  "verdict": "PASS",
+  "exit_code": 0,
+  "thresholds_version": "2026.1",
+  "run": {
+    "run_id": "81fb70d0-7065-45f6-8a1e-633fca7a36a1",
+    "source_system": "fixture",
+    "started_at": "2026-10-28T09:08:17.753763+00:00",
+    "finished_at": "2026-10-28T09:08:19.569576+00:00",
+    "duration_s": 1.816,
+    "status": "success",
+    "dry_run": false,
+    "strict": false,
+    "since": null,
+    "limit": null,
+    "bodies_total": 17,
+    "config_hash": "58b53ee09ba06a84f0f37a8e843d096c1c8c00319c17bf3750ff510da897d06e",
+    "taxonomy_version": "2026.10.1",
+    "inserted": 265,
+    "updated": 0,
+    "unchanged": 0,
+    "rebuilt": false,
+    "notes": []
+  },
+  "funnel": {
+    "fetched": 780,
+    "pages_fetched": 48,
+    "steps": [
+      {
+        "label": "malformed by adapter",
+        "removed": 3,
+        "remaining": 777,
+        "disposition": "dead letter (signal_ingest_reject)"
+      },
+      {
+        "label": "rejected by normaliser",
+        "removed": 10,
+        "remaining": 767,
+        "disposition": "dead letter (signal_ingest_reject)"
+      },
+      {
+        "label": "below taxonomy threshold",
+        "removed": 486,
+        "remaining": 281,
+        "disposition": "not a signal — no row written"
+      },
+      {
+        "label": "intra-run duplicates",
+        "removed": 16,
+        "remaining": 265,
+        "disposition": "collapsed — same record seen twice"
+      },
+      {
+        "label": "staged for load",
+        "removed": 0,
+        "remaining": 265,
+        "disposition": "reached the table"
+      },
+      {
+        "label": "load outcome",
+        "removed": 0,
+        "remaining": 265,
+        "disposition": "265 inserted / 0 updated / 0 unchanged"
+      }
+    ],
+    "residual": 0,
+    "balances": true
+  },
+  "load": {
+    "inserted": 265,
+    "updated": 0,
+    "unchanged": 0,
+    "duplicates_in_batch": 0
+  },
+  "rerun_delta": {
+    "this_run": {
+      "inserted": 265,
+      "updated": 0,
+      "unchanged": 0
+    },
+    "previous_run": null,
+    "idempotent": null
+  },
+  "document_types": {
+    "typed": 258,
+    "unmapped": 11,
+    "unmapped_rate": 0.0426,
+    "top_unmapped_raw": [
+      {
+        "value": "Einladung",
+        "n": 4
+      },
+      {
+        "value": "Petition",
+        "n": 2
+      },
+      {
+        "value": "Stellungnahme der Fachbehörde",
+        "n": 2
+      },
+      {
+        "value": "Tagesordnung",
+        "n": 2
+      },
+      {
+        "value": "Bürgerbegehren",
+        "n": 1
+      }
+    ]
+  },
+  "completeness": [
+    {
+      "field": "title",
+      "present": 265,
+      "null": 0,
+      "null_rate": 0.0,
+      "limit": 0.0,
+      "structural": true,
+      "breached": false
+    },
+    {
+      "field": "source_url",
+      "present": 265,
+      "null": 0,
+      "null_rate": 0.0,
+      "limit": 0.0,
+      "structural": true,
+      "breached": false
+    },
+    {
+      "field": "content_hash",
+      "present": 265,
+      "null": 0,
+      "null_rate": 0.0,
+      "limit": 0.0,
+      "structural": true,
+      "breached": false
+    },
+    {
+      "field": "signal_type",
+      "present": 265,
+      "null": 0,
+      "null_rate": 0.0,
+      "limit": 0.0,
+      "structural": true,
+      "breached": false
+    },
+    {
+      "field": "relevance_score",
+      "present": 265,
+      "null": 0,
+      "null_rate": 0.0,
+      "limit": 0.0,
+      "structural": true,
+      "breached": false
+    },
+    {
+      "field": "published_at",
+      "present": 223,
+      "null": 42,
+      "null_rate": 0.1585,
+      "limit": 0.65,
+      "structural": false,
+      "breached": false
+    },
+    {
+      "field": "geom",
+      "present": 242,
+      "null": 23,
+      "null_rate": 0.0868,
+      "limit": 0.95,
+      "structural": false,
+      "breached": false
+    },
+    {
+      "field": "ags",
+      "present": 250,
+      "null": 15,
+      "null_rate": 0.0566,
+      "limit": 0.3,
+      "structural": false,
+      "breached": false
+    },
+    {
+      "field": "municipality_name",
+      "present": 242,
+      "null": 23,
+      "null_rate": 0.0868,
+      "limit": 0.3,
+      "structural": false,
+      "breached": false
+    },
+    {
+      "field": "summary",
+      "present": 0,
+      "null": 265,
+      "null_rate": 1.0,
+      "limit": 1.0,
+      "structural": false,
+      "breached": false
+    },
+    {
+      "field": "document_type",
+      "present": 258,
+      "null": 7,
+      "null_rate": 0.0264,
+      "limit": 0.25,
+      "structural": false,
+      "breached": false
+    },
+    {
+      "field": "source_licence",
+      "present": 122,
+      "null": 143,
+      "null_rate": 0.5396,
+      "limit": 1.0,
+      "structural": false,
+      "breached": false
+    }
+  ],
+  "rejections": [
+    {
+      "reason_code": "missing_required_field",
+      "count": 4,
+      "example_record_id": "https://oparl.example.org/oparl/v1.0/paper/25452",
+      "example_body_id": "https://oparl.example.org/oparl/v1.0/body/3",
+      "example_detail": "no usable title: none of name, title, subject carries text in the payload"
+    },
+    {
+      "reason_code": "geo_latlon_in_projected_field",
+      "count": 3,
+      "example_record_id": "https://oparl.example.org/oparl/v1.0/paper/61196",
+      "example_body_id": "https://oparl.example.org/oparl/v1.0/body/7",
+      "example_detail": "(x=13.7373, y=51.0504) looks like longitude/latitude (or a zero placeholder) written into a projected-coordinate field; a real EPSG:25832 easting is a six-digit number"
+    },
+    {
+      "reason_code": "geo_out_of_crs_domain",
+      "count": 3,
+      "example_record_id": "https://oparl.example.org/oparl/v1.0/paper/40912",
+      "example_body_id": "https://oparl.example.org/oparl/v1.0/body/4",
+      "example_detail": "(x=2999999.0, y=6000000.0) is outside the EPSG:25832 domain E(265000.0, 935000.0) N(5200000.0, 6120000.0)"
+    },
+    {
+      "reason_code": "date_out_of_range",
+      "count": 1,
+      "example_record_id": "https://oparl.example.org/oparl/v1.0/paper/48896",
+      "example_body_id": "https://oparl.example.org/oparl/v1.0/body/5",
+      "example_detail": "year 1850 in '1850-03-01' is before min_plausible_year=1990"
+    },
+    {
+      "reason_code": "date_unparseable",
+      "count": 1,
+      "example_record_id": "https://oparl.example.org/oparl/v1.0/paper/91118",
+      "example_body_id": "https://oparl.example.org/oparl/v1.0/body/11",
+      "example_detail": "cannot parse '31.02.2026': day is out of range for month"
+    },
+    {
+      "reason_code": "schema_validation_failed",
+      "count": 1,
+      "example_record_id": null,
+      "example_body_id": "https://oparl.example.org/oparl/v1.0/body/3",
+      "example_detail": "adapter could not build a RawDocument from this record (schema_validation_failed)"
+    }
+  ],
+  "distributions": {
+    "published_at_origin": [
+      {
+        "key": "payload_field",
+        "n": 223,
+        "pct": 84.2
+      },
+      {
+        "key": "unknown",
+        "n": 42,
+        "pct": 15.8
+      }
+    ],
+    "geo_confidence": [
+      {
+        "key": "high",
+        "n": 17,
+        "pct": 6.4
+      },
+      {
+        "key": "low",
+        "n": 225,
+        "pct": 84.9
+      },
+      {
+        "key": "none",
+        "n": 23,
+        "pct": 8.7
+      }
+    ],
+    "geo_method": [
+      {
+        "key": "source_coordinates",
+        "n": 17,
+        "pct": 6.4
+      },
+      {
+        "key": "municipality_centroid",
+        "n": 225,
+        "pct": 84.9
+      },
+      {
+        "key": "unresolved",
+        "n": 23,
+        "pct": 8.7
+      }
+    ],
+    "signal_mix": [
+      {
+        "signal_type": "land_use_plan",
+        "n": 70,
+        "mean_score": 0.684
+      },
+      {
+        "signal_type": "pv_open_space",
+        "n": 39,
+        "mean_score": 0.891
+      },
+      {
+        "signal_type": "transport_civils",
+        "n": 34,
+        "mean_score": 0.765
+      },
+      {
+        "signal_type": "grid_connection",
+        "n": 33,
+        "mean_score": 0.795
+      },
+      {
+        "signal_type": "digital_infra",
+        "n": 29,
+        "mean_score": 0.824
+      },
+      {
+        "signal_type": "heat_planning",
+        "n": 25,
+        "mean_score": 0.832
+      },
+      {
+        "signal_type": "wind_energy",
+        "n": 20,
+        "mean_score": 0.87
+      },
+      {
+        "signal_type": "storage",
+        "n": 15,
+        "mean_score": 0.873
+      }
+    ],
+    "licences": [
+      {
+        "licence": "(undeclared)",
+        "n": 143
+      },
+      {
+        "licence": "https://www.govdata.de/dl-de/by-2-0",
+        "n": 69
+      },
+      {
+        "licence": "https://creativecommons.org/licenses/by/4.0/",
+        "n": 53
+      }
+    ]
+  },
+  "bodies": [
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/1",
+      "name": "München (synthetisch)",
+      "licence": null,
+      "ags": "09162000",
+      "pages": 3,
+      "fetched": 68,
+      "emitted": 21,
+      "below_threshold": 44,
+      "rejected": 1,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0147
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/2",
+      "name": "Berlin (synthetisch)",
+      "licence": "https://www.govdata.de/dl-de/by-2-0",
+      "ags": "11000000",
+      "pages": 3,
+      "fetched": 68,
+      "emitted": 24,
+      "below_threshold": 42,
+      "rejected": 0,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/3",
+      "name": "Hamburg (synthetisch)",
+      "licence": "https://www.govdata.de/dl-de/by-2-0",
+      "ags": "02000000",
+      "pages": 3,
+      "fetched": 60,
+      "emitted": 17,
+      "below_threshold": 41,
+      "rejected": 2,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0333
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/4",
+      "name": "Köln (synthetisch)",
+      "licence": null,
+      "ags": "05315000",
+      "pages": 3,
+      "fetched": 61,
+      "emitted": 25,
+      "below_threshold": 33,
+      "rejected": 1,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0164
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/5",
+      "name": "Frankfurt am Main (synthetisch)",
+      "licence": "https://creativecommons.org/licenses/by/4.0/",
+      "ags": "06412000",
+      "pages": 3,
+      "fetched": 54,
+      "emitted": 20,
+      "below_threshold": 31,
+      "rejected": 1,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0185
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/6",
+      "name": "Stuttgart (synthetisch)",
+      "licence": null,
+      "ags": "08111000",
+      "pages": 3,
+      "fetched": 53,
+      "emitted": 13,
+      "below_threshold": 39,
+      "rejected": 1,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0189
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/7",
+      "name": "Dresden (synthetisch)",
+      "licence": "https://creativecommons.org/licenses/by/4.0/",
+      "ags": "14612000",
+      "pages": 3,
+      "fetched": 54,
+      "emitted": 18,
+      "below_threshold": 32,
+      "rejected": 2,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.037
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/8",
+      "name": "Leipzig (synthetisch)",
+      "licence": null,
+      "ags": "14713000",
+      "pages": 3,
+      "fetched": 52,
+      "emitted": 14,
+      "below_threshold": 37,
+      "rejected": 1,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0192
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/9",
+      "name": "Düsseldorf (synthetisch)",
+      "licence": "https://www.govdata.de/dl-de/by-2-0",
+      "ags": "05111000",
+      "pages": 3,
+      "fetched": 46,
+      "emitted": 14,
+      "below_threshold": 30,
+      "rejected": 0,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/10",
+      "name": "Hannover (synthetisch)",
+      "licence": null,
+      "ags": "03241001",
+      "pages": 3,
+      "fetched": 46,
+      "emitted": 16,
+      "below_threshold": 28,
+      "rejected": 0,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/11",
+      "name": "Nürnberg (synthetisch)",
+      "licence": "https://creativecommons.org/licenses/by/4.0/",
+      "ags": "09564000",
+      "pages": 3,
+      "fetched": 45,
+      "emitted": 15,
+      "below_threshold": 27,
+      "rejected": 3,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0667
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/12",
+      "name": "Bremen (synthetisch)",
+      "licence": null,
+      "ags": "04011000",
+      "pages": 3,
+      "fetched": 39,
+      "emitted": 15,
+      "below_threshold": 22,
+      "rejected": 0,
+      "duplicates": 2,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/13",
+      "name": "Essen (synthetisch)",
+      "licence": null,
+      "ags": "05113000",
+      "pages": 3,
+      "fetched": 37,
+      "emitted": 16,
+      "below_threshold": 21,
+      "rejected": 0,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/14",
+      "name": "Potsdam (synthetisch)",
+      "licence": "https://www.govdata.de/dl-de/by-2-0",
+      "ags": "12054000",
+      "pages": 2,
+      "fetched": 30,
+      "emitted": 14,
+      "below_threshold": 15,
+      "rejected": 1,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0333
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/15",
+      "name": "Mainz (synthetisch)",
+      "licence": null,
+      "ags": "07315000",
+      "pages": 2,
+      "fetched": 30,
+      "emitted": 8,
+      "below_threshold": 22,
+      "rejected": 0,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/16",
+      "name": "Bezirksausschuss Beispielviertel (synthetisch)",
+      "licence": null,
+      "ags": null,
+      "pages": 3,
+      "fetched": 22,
+      "emitted": 9,
+      "below_threshold": 13,
+      "rejected": 0,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    },
+    {
+      "body_id": "https://oparl.example.org/oparl/v1.0/body/17",
+      "name": "Ortsbeirat Nord (synthetisch)",
+      "licence": null,
+      "ags": null,
+      "pages": 2,
+      "fetched": 15,
+      "emitted": 6,
+      "below_threshold": 9,
+      "rejected": 0,
+      "duplicates": 0,
+      "stop_reason": "exhausted",
+      "degraded": false,
+      "watermark": "advanced",
+      "error": null,
+      "reject_rate": 0.0
+    }
+  ],
+  "findings": [],
+  "geo_notes": [
+    {
+      "note": "municipality centroid only: not the location the document refers to",
+      "n": 225
+    },
+    {
+      "note": "no AGS supplied: municipality centroid tier unavailable; unresolved: no tier produced a trustworthy location",
+      "n": 15
+    },
+    {
+      "note": "AGS 07315000 not in gazetteer: municipality containment check and centroid tier unavailable; unresolved: no tier produced a trustworthy location",
+      "n": 8
+    }
+  ]
+}
