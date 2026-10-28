@@ -272,3 +272,216 @@ section[data-testid="stSidebar"] button p {
     font-weight: 700;
     letter-spacing: 0.05em;
 }
+
+/* =====================================================
+   KPI ROW (st.metric inside bordered containers)
+======================================================*/
+
+[class*="st-key-kpi_"] [data-testid="stMetricLabel"] p {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: normal;
+}
+
+[class*="st-key-kpi_"] [data-testid="stMetricValue"] {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0F172A;
+    letter-spacing: -0.02em;
+}
+
+[class*="st-key-kpi_"] [data-testid="stCaptionContainer"] {
+    font-size: 11px;
+    line-height: 1.35;
+}
+
+/* the verdict value is a coloured pill; the colour is keyed on the verdict itself */
+[class*="st-key-kpi_verdict_"] [data-testid="stMetricValue"] > div {
+    display: inline-block;
+    padding: 0 12px;
+    border-radius: 20px;
+    color: #FFFFFF;
+    font-size: 18px;
+    line-height: 1.6;
+    overflow: visible;
+}
+
+.st-key-kpi_verdict_pass [data-testid="stMetricValue"] > div { background: #16A34A; }
+.st-key-kpi_verdict_warn [data-testid="stMetricValue"] > div { background: #F59E0B; }
+.st-key-kpi_verdict_fail [data-testid="stMetricValue"] > div { background: #DC2626; }
+.st-key-kpi_verdict_not_recorded [data-testid="stMetricValue"] > div { background: #94A3B8; }
+
+/* =====================================================
+   SIDEBAR GROUPS
+======================================================*/
+
+.sidebar-group {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #94A3B8;
+    margin: 12px 0 6px 0;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-subgroup {
+    font-size: 12px;
+    font-weight: 700;
+    color: #CBD5E1;
+    margin: 10px 0 0 0;
+}
+
+/* =====================================================
+   PROVENANCE SUMMARY
+======================================================*/
+
+.prov-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px 28px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left: 5px solid #0F766E;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 6px 0 10px 0;
+    font-size: 13px;
+    color: #111827;
+}
+
+.prov-col {
+    flex: 1 1 280px;
+    min-width: 0;
+}
+
+.prov-head {
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.prov-head small,
+.prov-list small,
+.prov-foot {
+    font-weight: 500;
+    color: #64748B;
+    font-size: 11.5px;
+}
+
+.prov-stack {
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: #F1F5F9;
+    margin-bottom: 8px;
+}
+
+.prov-stack span {
+    display: block;
+    height: 100%;
+}
+
+.prov-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.prov-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 2px 0;
+}
+
+.prov-list .dot {
+    flex: none;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    align-self: center;
+}
+
+.prov-list .lbl {
+    flex: 1 1 auto;
+    min-width: 0;
+    cursor: help;
+}
+
+.prov-list .val {
+    flex: none;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.prov-list li.caution .lbl,
+.prov-list li.caution .val {
+    font-weight: 700;
+    color: #92400E;
+}
+
+.prov-list li.zero {
+    color: #94A3B8;
+}
+
+.prov-foot {
+    flex: 1 1 100%;
+}
+
+/* =====================================================
+   NARROW WINDOWS
+======================================================*/
+
+/* Let column rows wrap instead of squeezing five cards into a sliver. */
+[data-testid="stMain"] [data-testid="stHorizontalBlock"] {
+    flex-wrap: wrap;
+}
+
+[data-testid="stMain"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    min-width: min(100%, 210px);
+}
+
+@media (max-width: 900px) {
+    [data-testid="stMain"] [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        min-width: min(100%, 300px);
+    }
+}
+
+@media (max-width: 640px) {
+    .block-container {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .hdr-title {
+        font-size: 19px;
+    }
+}
+
+/* the sidebar's dark-button rule must not turn the help (i) icons into boxes */
+section[data-testid="stSidebar"] button[aria-label^="Help for"] {
+    background: transparent;
+    border: none;
+}
+
+section[data-testid="stSidebar"] button[aria-label^="Help for"] svg {
+    stroke: #94A3B8 !important;
+}
+
+/* five KPI cards fit one row from roughly 1100px up, and wrap below that */
+.st-key-kpi_row [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+    min-width: min(100%, 160px);
+}
+
+/* wide Markdown tables (funnel, glossary, reason codes) scroll inside themselves on narrow
+   windows instead of pushing the whole page sideways */
+[data-testid="stMarkdownContainer"] table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+}

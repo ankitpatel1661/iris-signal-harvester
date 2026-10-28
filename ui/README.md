@@ -60,6 +60,20 @@ no geometry are counted and never placed, and opacity/size still follow `geo_con
 WGS84 coordinates are computed from the exported EPSG:25832 columns (inverse UTM, within
 1e-10 degrees of PROJ).
 
+## Explaining the domain in place
+
+The page assumes no knowledge of German municipal open data. Every term carries a hover
+tooltip (the (i) next to a KPI, filter, chart heading or table column), and a collapsed
+**What the terms mean** expander near the top collects them as tables (AGS, signal, dead letter,
+quality gate, EPSG:25832, the date-origin and geometry-method vocabularies, the eight signal
+types with their German terms, the funnel stages and the rejection reason codes).
+
+All of that wording lives in one module, `ui/help_text.py`, so the tooltips, chart hovers and
+the glossary cannot drift apart. It only says what a term *means*; it never states or changes
+a number. Category lists run best to worst, top to bottom, everywhere (summary, charts,
+cross-table); the funnel is numbered and reads top to bottom, with a table beside it. The
+re-run delta compares two runs in one database: in sample mode pick `corpus_main, re-run`.
+
 ## Deploy on Streamlit Community Cloud
 
 1. Push the repository (including `docs/samples/`) to GitHub.
@@ -79,8 +93,8 @@ Keep `requirements.txt` and `ui/requirements.txt` identical when you change eith
 ## Layout
 
 Mirrors the platform UI: `app.py` entry point (and root `streamlit_app.py`, which just runs
-it), `config.py` (settings) / `theme.py` (colours) / `assets/styles.css`, `components/` (header,
-sample_banner, kpi_section, sidebar, signal_table, provenance_panel, quality_panel,
+it), `config.py` (settings) / `theme.py` (colours) / `help_text.py` (definitions) / `assets/styles.css`, `components/` (header,
+sample_banner, glossary, kpi_section, sidebar, signal_table, provenance_panel, quality_panel,
 `map/pydeck/`), and `data/` (`connection.py` + `queries.py` for PostgreSQL, `samples.py` for the
 files, `service.py` choosing between them).
 

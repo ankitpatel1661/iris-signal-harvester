@@ -18,7 +18,8 @@ def render_map(df: pd.DataFrame, type_colors: dict[str, str]) -> None:
     st.html(
         '<div class="section-title">Signal map</div>'
         '<div class="section-sub">Each point is one signal. A faint, small point is a '
-        "low-confidence location such as a municipality centroid.</div>"
+        "low-confidence location such as a municipality centroid. Hover a point for its title, "
+        "type, location method and confidence.</div>"
     )
     located, unlocated = split_located(df)
 

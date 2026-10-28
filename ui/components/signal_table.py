@@ -15,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from ui import config
+from ui.help_text import TABLE_HELP
 
 MAX_ROWS_RENDERED = 5_000
 
@@ -23,7 +24,8 @@ def render_signal_table(df: pd.DataFrame) -> None:
     st.html(
         '<div class="section-title">Signals</div>'
         '<div class="section-sub">Filtered by the sidebar. Open the source link to verify any '
-        "row against the original council document.</div>"
+        "row against the original council document. Hover a column header for what it means; "
+        "'unknown' always means the value was not recorded.</div>"
     )
     if df.empty:
         st.caption("No signals in the current selection.")
@@ -54,17 +56,27 @@ def render_signal_table(df: pd.DataFrame) -> None:
         hide_index=True,
         height=420,
         column_config={
-            "Title": st.column_config.TextColumn(width="large"),
+            "Title": st.column_config.TextColumn(width="large", help=TABLE_HELP["Title"]),
+            "Type": st.column_config.TextColumn(help=TABLE_HELP["Type"]),
             "Score": st.column_config.ProgressColumn(
                 "Score",
                 min_value=0.0,
                 max_value=1.0,
                 format="%.2f",
-                help="relevance_score (0-1). Empty = unknown.",
+                help=TABLE_HELP["Score"],
             ),
-            "Evidence (matched keywords)": st.column_config.TextColumn(width="large"),
+            "Evidence (matched keywords)": st.column_config.TextColumn(
+                width="large", help=TABLE_HELP["Evidence (matched keywords)"]
+            ),
+            "Municipality": st.column_config.TextColumn(help=TABLE_HELP["Municipality"]),
+            "Bundesland": st.column_config.TextColumn(help=TABLE_HELP["Bundesland"]),
+            "AGS": st.column_config.TextColumn(help=TABLE_HELP["AGS"]),
+            "Published": st.column_config.TextColumn(help=TABLE_HELP["Published"]),
+            "Date origin": st.column_config.TextColumn(help=TABLE_HELP["Date origin"]),
+            "Geo method": st.column_config.TextColumn(help=TABLE_HELP["Geo method"]),
+            "Geo confidence": st.column_config.TextColumn(help=TABLE_HELP["Geo confidence"]),
             "Source": st.column_config.LinkColumn(
-                "Source", display_text="open source", help="source_url of the council document"
+                "Source", display_text="open source", help=TABLE_HELP["Source"]
             ),
         },
     )
@@ -77,7 +89,13 @@ def render_signal_table(df: pd.DataFrame) -> None:
 def _evidence_detail(df: pd.DataFrame) -> None:
     with st.expander("Evidence detail for one signal"):
         options = {f"#{row.id} - {row.title[:90]}": idx for idx, row in df.head(500).iterrows()}
-        choice = st.selectbox("Signal", list(options), key="evidence_pick")
+        choice = st.selectbox(
+            "Signal",
+            list(options),
+            key="evidence_pick",
+            help="Pick a signal to see the keyword hits that made it a signal "
+            "(the first 500 rows of the table above).",
+        )
         if choice is None:
             return
         row = df.loc[options[choice]]

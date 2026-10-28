@@ -28,6 +28,7 @@ from ui.components.empty_state import (  # noqa: E402
     render_error_state,
     render_no_match_state,
 )
+from ui.components.glossary import render_glossary  # noqa: E402
 from ui.components.header import render_header  # noqa: E402
 from ui.components.kpi_section import render_kpis  # noqa: E402
 from ui.components.map import render_map  # noqa: E402
@@ -44,7 +45,7 @@ st.set_page_config(
     page_title=config.PAGE_TITLE,
     page_icon=config.PAGE_ICON,
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="auto",
 )
 
 css_file = Path(__file__).parent / "assets" / "styles.css"
@@ -57,6 +58,7 @@ snapshot = load_snapshot(st.session_state.get(SAMPLE_RUN_STATE_KEY, DEFAULT_RUN)
 filters = render_sidebar(snapshot)
 render_sample_banner(snapshot)
 render_header(snapshot)
+render_glossary()
 
 if snapshot.error:
     render_error_state(snapshot.error, sample=snapshot.is_sample)
