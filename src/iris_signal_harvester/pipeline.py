@@ -888,10 +888,10 @@ class SourceRegistry:
     """``config/bodies.yaml``, read once.
 
     The registry records each source's licence and health state so that choosing a
-    source is a documented decision rather than a hard-coded URL. Bodies listed in the
-    file are informational: OParl bodies are discovered from the System object at
-    runtime, because writing down 26 body ids that were never individually probed
-    would be a guess.
+    source is a documented decision rather than a hard-coded URL. Bodies are not
+    configured here: OParl bodies are discovered from the System object at runtime,
+    because writing down 26 body ids that were never individually probed would be a
+    guess.
     """
 
     def __init__(self, data: Mapping[str, Any]) -> None:
@@ -916,10 +916,6 @@ class SourceRegistry:
                 default=bool(entry.get("default", False)),
                 description=str(entry.get("description", "")).strip(),
             )
-        bodies = data.get("bodies")
-        self.bodies: tuple[Mapping[str, Any], ...] = (
-            tuple(b for b in bodies if isinstance(b, Mapping)) if isinstance(bodies, list) else ()
-        )
         if self.default_source and self.default_source not in self.sources:
             raise ConfigurationError(
                 f"bodies.yaml: default_source {self.default_source!r} is not a declared source"
@@ -943,9 +939,6 @@ class SourceRegistry:
             raise ConfigurationError(
                 f"unknown source {name!r}; declared sources: {', '.join(sorted(self.sources))}"
             ) from None
-
-    def bodies_for(self, source: str) -> tuple[Mapping[str, Any], ...]:
-        return tuple(b for b in self.bodies if str(b.get("source", "")) == source)
 
 
 def _opt_str(value: object) -> str | None:

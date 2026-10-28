@@ -287,8 +287,8 @@ def test_harvest_twice_then_validate_and_report(cli_dsn: str, tmp_path: Path) ->
     text = (tmp_path / "quality_latest.md").read_text(encoding="utf-8")
     assert "Rebuilt from stored rows" in text
 
-    # The rebuilt report must carry the real numbers, not pass on emptiness (final-review
-    # I-5): the idempotent re-run fetched 4 records and re-observed 4 stored rows.
+    # The rebuilt report must carry the real numbers, not pass on emptiness:
+    # the idempotent re-run fetched 4 records and re-observed 4 stored rows.
     (rebuilt_json,) = tmp_path.glob("quality_*.rebuilt.json")
     data = json.loads(rebuilt_json.read_text(encoding="utf-8"))
     assert data["run"]["rebuilt"] is True

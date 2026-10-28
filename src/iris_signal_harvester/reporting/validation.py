@@ -1,6 +1,6 @@
 """Run ``sql/validation_queries.sql`` and refuse to pass vacuously.
 
-Why this module exists (final-review I-14). The command-line ``validate`` used to:
+Why this module exists. The command-line ``validate`` used to:
 
 * silently skip any query it could not run (one containing ``:'run_id'``),
 * silently skip any query whose marker comment had been edited away, and

@@ -414,7 +414,7 @@ class VerificationReport:
     def _decision(self) -> list[str]:
         if not self.briefed_exists:
             return [
-                "**Branch B** of the decision rule applies (see Solution Design §2.1).",
+                "**Branch B** of the decision rule applies.",
                 "",
                 "- The briefed `RatsdokumenteApiAdapter` is implemented against the contract "
                 "described in the brief and is fully covered by fixture-based tests, so it can "
@@ -475,7 +475,7 @@ class SourceVerifier:
             headers={"User-Agent": self._user_agent},
             timeout=httpx.Timeout(self._timeout),
             # Never follow redirects. The main client follows them hop by hop with a
-            # robots.txt check at each one (final-review C-1); a diagnostic probe that let
+            # robots.txt check at each one; a diagnostic probe that let
             # httpx follow silently would fetch hosts whose robots.txt it never read. A 3xx
             # is reported with its Location instead.
             follow_redirects=False,

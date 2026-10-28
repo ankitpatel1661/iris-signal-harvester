@@ -4,11 +4,11 @@
     "http_status": 200,
     "server_date": "Wed, 28 Oct 2026 08:56:51 GMT",
     "content_type": "application/json",
-    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:ops@example.org)",
+    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:[redacted])",
     "probed_on": "2026-10-28",
     "method": "GET (read-only, one request at a time, >=2 s apart)",
     "redactions": [
-      "contactEmail/contactName/website/web/organization/person/meeting links and legislativeTerm arrays dropped from each Body (replaced by a count). Keys are otherwise exactly as served: 'license' and, on 25 of 26 bodies, 'ags' and 'rgs' are ABSENT in the served object, not null."
+      "no body records are kept: only counts over all 26 bodies, and the key names with value types of a body. 'license' is ABSENT on all 26 bodies and 'ags' on 25 of 26 in the served objects, not null. The operator contact address in the User-Agent is redacted; it is not the literal string sent."
     ]
   },
   "_statistics_over_full_page": {

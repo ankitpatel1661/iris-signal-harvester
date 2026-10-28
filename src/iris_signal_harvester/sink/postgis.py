@@ -309,7 +309,7 @@ class PostgisSink:
 
         ``iris-harvest report`` rebuilds a report from stored rows, which cannot recover
         everything the run measured. Carrying the verdict the run itself computed is what
-        stops a rebuilt report from regrading (final-review I-5). Merged into ``notes``,
+        stops a rebuilt report from regrading. Merged into ``notes``,
         so ``finish_run``'s own keys are untouched.
         """
         statement = sql.SQL("UPDATE {} SET notes = notes || %s::jsonb WHERE id = %s").format(

@@ -43,15 +43,25 @@ document_type        ``paperType``, ``document_type``, ``documentType``, then
                      mapped through ``config/document_types.yaml`` (see below)
 published_at tier 1  ``date``, ``published``, ``publishedDate``, ``datePublished``
 meeting date tier 3  ``meeting[].start``, ``meetingDate``, ``meeting_date``
-coordinates          ``location.{x,y,crs}``
+coordinates          ``location.{x,y,crs}`` (cassette shape), else
+                     ``location.geojson`` Point in WGS84 (OParl ``Location``)
 address              ``location.streetAddress`` (+ ``postalCode``, ``locality``)
 ===================  ==========================================================
 
-``location`` as an ``{x, y, crs}`` object is **not** part of OParl: the verified live
-endpoint carries no ``location`` on ``Paper`` at all. It is the shape the committed
-geo cassettes use, and the briefed ``ratsdokumente`` contract uses it too, so reading
-it here is what lets tier 1 be exercised offline. On the live OParl source this tier
-simply never fires, which is why tiers 4 and 5 dominate there.
+Tier 1 accepts two ``location`` shapes, the cassette shape first:
+
+* ``{x, y, crs}``: **not** part of OParl. It is the shape the committed geo cassettes
+  use, and the briefed ``ratsdokumente`` contract uses it too, so reading it is what
+  lets tier 1 be exercised offline. The CRS is mandatory (EPSG:25832 or 25833).
+* ``geojson``: the real OParl ``Location`` shape. A GeoJSON Feature, or a bare
+  Geometry, whose geometry is a ``Point`` in WGS84 (``[longitude, latitude]``). It is
+  reprojected to EPSG:25832 and then validated exactly like every other point. Any
+  other geometry type is ignored rather than guessed at. ``Paper.location`` may be a
+  single object or a list of them; a list is used only when it holds exactly one
+  ``Location``, because choosing among several would be a guess.
+
+The verified live endpoint carries no ``location`` on ``Paper`` at all, so on that
+endpoint this tier never fires, which is why tiers 4 and 5 dominate there.
 
 Document types are a controlled vocabulary (``config/document_types.yaml``): the raw
 ``paperType`` is folded and looked up; a value that matches no alias becomes
@@ -307,24 +317,65 @@ def _location(payload: Mapping[str, Any]) -> Mapping[str, Any] | None:
     return location if isinstance(location, Mapping) else None
 
 
-def payload_coordinates(payload: Mapping[str, Any]) -> SourceCoordinates | None:
-    """Read the cassette/``ratsdokumente`` ``location = {x, y, crs}`` object.
+def _geojson_point(geojson: object) -> tuple[float, float] | None:
+    """``(lon, lat)`` of a GeoJSON ``Point`` (as Feature or bare Geometry), else ``None``.
 
-    The CRS is mandatory and never defaulted: a coordinate pair with no declared
-    CRS is two numbers, not a location, and assuming EPSG:25832 is exactly the kind
-    of silent guess this project refuses. Such a pair is ignored here, which sends
-    the record down the tier chain to the municipality centroid or to honest
-    ``unresolved``.
+    Only a Point yields a single location. A Polygon, a collection or anything
+    malformed returns ``None``; no representative point is invented for it. Numbers
+    must be real JSON numbers (strings are not coerced), and any altitude is ignored.
     """
-    location = _location(payload)
-    if location is None:
+    if not isinstance(geojson, Mapping):
+        return None
+    geometry: object = geojson
+    if geojson.get("type") == "Feature":
+        geometry = geojson.get("geometry")
+    if not isinstance(geometry, Mapping) or geometry.get("type") != "Point":
+        return None
+    coordinates = geometry.get("coordinates")
+    if not isinstance(coordinates, list | tuple) or len(coordinates) < 2:
+        return None
+    lon, lat = coordinates[0], coordinates[1]
+    if isinstance(lon, bool) or isinstance(lat, bool):
+        return None
+    if not isinstance(lon, int | float) or not isinstance(lat, int | float):
+        return None
+    return (float(lon), float(lat))
+
+
+def payload_coordinates(payload: Mapping[str, Any]) -> SourceCoordinates | None:
+    """Tier-1 coordinates from ``location``: the cassette shape, else OParl GeoJSON.
+
+    1. ``location = {x, y, crs}`` (cassette / ``ratsdokumente`` shape). The CRS is
+       mandatory and never defaulted: a coordinate pair with no declared CRS is two
+       numbers, not a location, and assuming EPSG:25832 is exactly the kind of silent
+       guess this project refuses.
+    2. ``location.geojson``, the real OParl ``Location`` member: a WGS84 Point, returned
+       with ``geographic=True`` so the resolver reprojects it to EPSG:25832.
+
+    A location with neither is ignored here, which sends the record down the tier chain
+    to the municipality centroid or to honest ``unresolved``.
+    """
+    raw = payload.get("location")
+    if isinstance(raw, list | tuple):
+        # OParl's Paper.location is a list. One Location is usable; several are not,
+        # because picking one of them would be a guess.
+        candidates = [item for item in raw if isinstance(item, Mapping)]
+        if len(candidates) != 1:
+            return None
+        location: Mapping[str, Any] = candidates[0]
+    elif isinstance(raw, Mapping):
+        location = raw
+    else:
         return None
     x = _float(location.get("x"))
     y = _float(location.get("y"))
     crs = _text(location.get("crs"))
-    if x is None or y is None or crs is None:
-        return None
-    return SourceCoordinates(x=x, y=y, crs=crs)
+    if x is not None and y is not None and crs is not None:
+        return SourceCoordinates(x=x, y=y, crs=crs)
+    point = _geojson_point(location.get("geojson"))
+    if point is not None:
+        return SourceCoordinates(x=point[0], y=point[1], crs="EPSG:4326", geographic=True)
+    return None
 
 
 def payload_address(payload: Mapping[str, Any]) -> str | None:

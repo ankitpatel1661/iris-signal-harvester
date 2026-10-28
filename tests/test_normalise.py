@@ -331,6 +331,138 @@ def test_normalisation_never_raises_for_hostile_input(normaliser: Normaliser) ->
 
 
 # ---------------------------------------------------------------------------
+# tier 1, the real OParl Location shape (location.geojson, WGS84 Point)
+# ---------------------------------------------------------------------------
+
+# Marienplatz, München, as GeoJSON: [longitude, latitude].
+GEOJSON_FEATURE = {
+    "type": "Feature",
+    "geometry": {"type": "Point", "coordinates": [11.5756, 48.1372]},
+}
+
+
+def test_tier_one_reads_an_oparl_location_geojson_feature(normaliser: Normaliser) -> None:
+    doc = document(
+        location={"type": "https://schema.oparl.org/1.0/Location", "geojson": GEOJSON_FEATURE}
+    )
+    signal = normaliser.normalise(doc, MUNICH, RUN, now=NOW).signal
+    assert signal is not None
+    assert signal.geo_method is GeoMethod.SOURCE_COORDINATES
+    assert signal.geo_confidence is GeoConfidence.HIGH
+    assert signal.source_crs == "EPSG:4326"
+    # Reprojected to EPSG:25832: it must equal what pyproj gives, not the raw degrees.
+    from pyproj import Transformer
+
+    ex, ey = Transformer.from_crs("EPSG:4326", "EPSG:25832", always_xy=True).transform(
+        11.5756, 48.1372
+    )
+    assert signal.easting == pytest.approx(ex, abs=0.01)
+    assert signal.northing == pytest.approx(ey, abs=0.01)
+
+
+def test_tier_one_reads_a_bare_geojson_point_geometry(normaliser: Normaliser) -> None:
+    doc = document(
+        location={"geojson": {"type": "Point", "coordinates": [11.5756, 48.1372, 519.0]}}
+    )
+    signal = normaliser.normalise(doc, MUNICH, RUN, now=NOW).signal
+    assert signal is not None
+    assert signal.geo_method is GeoMethod.SOURCE_COORDINATES
+    assert signal.source_crs == "EPSG:4326"
+
+
+def test_a_paper_location_list_with_one_location_is_used(normaliser: Normaliser) -> None:
+    doc = document(location=[{"geojson": GEOJSON_FEATURE}])
+    signal = normaliser.normalise(doc, MUNICH, RUN, now=NOW).signal
+    assert signal is not None
+    assert signal.geo_method is GeoMethod.SOURCE_COORDINATES
+
+
+def test_a_paper_location_list_with_several_locations_is_not_guessed_at(
+    normaliser: Normaliser,
+) -> None:
+    doc = document(location=[{"geojson": GEOJSON_FEATURE}, {"geojson": GEOJSON_FEATURE}])
+    signal = normaliser.normalise(doc, MUNICH, RUN, now=NOW).signal
+    assert signal is not None
+    assert signal.geo_method is GeoMethod.MUNICIPALITY_CENTROID
+
+
+@pytest.mark.parametrize(
+    "geojson",
+    [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[11, 48], [12, 48], [11, 49], [11, 48]]],
+            },
+        },
+        {"type": "Feature", "geometry": None},
+        {"type": "FeatureCollection", "features": [GEOJSON_FEATURE]},
+        {"type": "Point", "coordinates": [11.5756]},
+        {"type": "Point", "coordinates": ["11.5756", "48.1372"]},
+        {"type": "Point", "coordinates": [True, False]},
+        "not-an-object",
+    ],
+    ids=["polygon", "null-geometry", "collection", "one-ordinate", "strings", "bools", "string"],
+)
+def test_geojson_that_is_not_a_usable_point_is_ignored_not_invented(
+    normaliser: Normaliser, geojson: Any
+) -> None:
+    signal = normaliser.normalise(
+        document(location={"geojson": geojson}), MUNICH, RUN, now=NOW
+    ).signal
+    assert signal is not None
+    assert signal.geo_method is GeoMethod.MUNICIPALITY_CENTROID
+
+
+@pytest.mark.parametrize(
+    ("coordinates", "code"),
+    [
+        ([0.0, 0.0], RejectCode.GEO_OUT_OF_CRS_DOMAIN),
+        ([48.1372, 11.5756], RejectCode.GEO_OUT_OF_CRS_DOMAIN),
+        ([240.0, 48.1372], RejectCode.GEO_OUT_OF_CRS_DOMAIN),
+        ([13.4050, 52.5200], RejectCode.GEO_OUTSIDE_CLAIMED_MUNICIPALITY),
+    ],
+    ids=["null-island", "swapped-lat-lon", "longitude-out-of-range", "wrong-municipality"],
+)
+def test_a_bad_geojson_point_is_rejected_never_clamped(
+    normaliser: Normaliser, coordinates: list[float], code: RejectCode
+) -> None:
+    geojson = {"type": "Point", "coordinates": coordinates}
+    outcome = normaliser.normalise(document(location={"geojson": geojson}), MUNICH, RUN, now=NOW)
+    assert outcome.verdict is Verdict.REJECTED
+    assert outcome.reject is not None
+    assert outcome.reject.reason_code is code
+
+
+def test_the_cassette_shape_wins_when_both_shapes_are_present() -> None:
+    found = payload_coordinates(
+        {"location": {**MUNICH_POINT, "geojson": GEOJSON_FEATURE}},
+    )
+    assert found is not None and found.crs == "EPSG:25832" and found.geographic is False
+
+
+def test_a_cassette_pair_without_a_crs_falls_through_to_geojson() -> None:
+    found = payload_coordinates({"location": {"x": 1.0, "y": 2.0, "geojson": GEOJSON_FEATURE}})
+    assert found is not None
+    assert (found.x, found.y, found.crs, found.geographic) == (11.5756, 48.1372, "EPSG:4326", True)
+
+
+def test_a_cassette_pair_declaring_wgs84_is_still_rejected(normaliser: Normaliser) -> None:
+    doc = document(location={"x": 11.5756, "y": 48.1372, "crs": "EPSG:4326"})
+    outcome = normaliser.normalise(doc, MUNICH, RUN, now=NOW)
+    assert outcome.reject is not None
+    assert outcome.reject.reason_code is RejectCode.GEO_LATLON_IN_PROJECTED_FIELD
+
+
+def test_a_paper_with_no_location_at_all_does_not_fire_tier_one() -> None:
+    """The probed live endpoint carries no ``location`` key on any paper."""
+    assert payload_coordinates({"name": "x"}) is None
+    assert payload_coordinates({"location": None}) is None
+    assert payload_coordinates({"location": []}) is None
+
+
+# ---------------------------------------------------------------------------
 # payload mapping helpers
 # ---------------------------------------------------------------------------
 
@@ -349,7 +481,7 @@ def test_payload_coordinates_requires_a_declared_crs() -> None:
 
 
 # ---------------------------------------------------------------------------
-# document-type vocabulary (review finding C-2)
+# document-type vocabulary
 # ---------------------------------------------------------------------------
 
 
@@ -440,7 +572,7 @@ def test_the_unmapped_bucket_cannot_be_a_real_type() -> None:
 
 
 # ---------------------------------------------------------------------------
-# relevance before date (review finding I-8)
+# relevance before date
 # ---------------------------------------------------------------------------
 
 
@@ -482,7 +614,7 @@ def test_an_irrelevant_document_with_a_bad_coordinate_is_below_threshold(
 
 
 # ---------------------------------------------------------------------------
-# whitespace normalisation (review finding M-11)
+# whitespace normalisation
 # ---------------------------------------------------------------------------
 
 
@@ -510,7 +642,7 @@ def test_a_real_title_change_still_changes_the_hash(normaliser: Normaliser) -> N
 
 
 # ---------------------------------------------------------------------------
-# values PostgreSQL cannot store are rejected BEFORE hashing (final-review I-1)
+# values PostgreSQL cannot store are rejected BEFORE hashing
 # ---------------------------------------------------------------------------
 
 

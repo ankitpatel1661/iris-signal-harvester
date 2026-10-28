@@ -1270,7 +1270,7 @@ def observations_from_db(
 
     What can and cannot be recovered, stated plainly because the alternative is a
     report that quietly means something different from the one the run itself wrote
-    (final-review I-5: a FAILED run regraded PASS, an idempotent re-run graded PASS on
+    (a FAILED run regraded PASS, an idempotent re-run graded PASS on
     zero rows):
 
     * ``harvest_run`` holds what the run *observed*: records fetched, inserted, updated,

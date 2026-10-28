@@ -637,7 +637,6 @@ def test_the_registry_declares_the_verified_live_endpoint_and_the_fixture_defaul
     assert oparl.licence == "undeclared"
     assert oparl.health == "verified_live"
     assert registry.entry("ratsdokumente").health == "nonexistent"
-    assert len(registry.bodies_for("fixture")) == 2
 
 
 def test_build_adapter_follows_the_registry() -> None:

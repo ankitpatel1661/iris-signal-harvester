@@ -18,7 +18,7 @@ reports/*
 .DS_Store
 .superpowers/
 
-# Committed evidence and sample output (review findings C-3 and I-12): these must stay
+# Committed evidence and sample output: these must stay
 # tracked even though reports/ is ignored. The corpus cassettes live under tests/fixtures.
 !docs/samples/
 !docs/samples/**

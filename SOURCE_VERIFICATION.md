@@ -5,7 +5,7 @@
 | Probe executed (UTC) | 2026-10-27 09:28:25Z |
 | Briefed source | `https://ratsdokumente.de/api/search` |
 | Method | Read-only DNS / WHOIS / HTTP probe. No authentication attempted. No access restriction bypassed. |
-| Operator user-agent | `iris-harvester-feasibility-check/0.1 (+mailto:ankitpatel.svnit@gmail.com)` |
+| Operator user-agent | An operator User-Agent carrying a real contact address. The address is redacted in the committed artefacts (see [`docs/evidence/README.md`](docs/evidence/README.md#user-agent)). |
 
 ## 1. Control — resolver and egress are healthy
 
@@ -81,7 +81,7 @@ $ curl https://oparl.org/robots.txt
 
 ## 7. Decision
 
-**Branch B** of the decision rule applies. The rule comes from the external Solution Design PDF (v1.1), which is not part of this repository; its outcome is restated in `docs/IMPLEMENTATION_PLAN.md` ("Verified source status").
+**Branch B** applies. The rule, fixed before the probe was run: if the briefed endpoint is live and serves a parseable, paginated collection, it becomes the primary source; if it is obsolete, inaccessible or restricted, the finding is recorded verbatim, the briefed adapter is retained and fixture-tested, and a justified alternative becomes the primary live source. No access restriction is bypassed either way.
 
 - The briefed `RatsdokumenteAdapter` (`src/iris_signal_harvester/adapters/ratsdokumente.py`) is implemented against the contract described in the brief and
   is fully covered by fixture-based tests, so it can be enabled unchanged should such a source exist or
@@ -93,25 +93,35 @@ $ curl https://oparl.org/robots.txt
 
 ## 8. Live OParl endpoint — capture of `muenchen-transparent.de`
 
-Added after review finding I-12: the README, plan and `config/bodies.yaml` assert facts about
-`https://www.muenchen-transparent.de/oparl/v1.0`, and sections 1-7 above contain no capture of that host.
-A redacted capture now lives in [`docs/evidence/`](docs/evidence/README.md), probed read-only on
-**2026-10-28 (08:56-08:58 UTC)** with the same operator user-agent as above, one request at a time,
-after reading `robots.txt` (`Disallow: /*/dav/` only; it does not apply to `/oparl/`).
+The README and `config/bodies.yaml` assert facts about `https://www.muenchen-transparent.de/oparl/v1.0`, and
+sections 1-7 above contain no capture of that host. A capture of **shape and counts only** (no publisher
+records) lives in [`docs/evidence/`](docs/evidence/README.md), probed read-only on **2026-10-28**, one request
+at a time, with an operator User-Agent whose contact address is redacted there (see
+[`docs/evidence/README.md`](docs/evidence/README.md#user-agent)). Each file's `_capture` block records its own
+time and spacing.
 
-| Claim in README / plan / `bodies.yaml` | What the capture shows on 2026-10-28 |
+`robots.txt` was read (`muenchen-transparent_access_rules.json`): HTTP 200, directives `User-agent: *`,
+`Disallow: /*/dav/` and a `Sitemap:` line. **That rule does not cover any path this project reads**: the
+OParl paths requested (`/oparl/v1.0`, `/oparl/v1.0/list/body`, and each body's `.../list/paper`) contain no
+`/dav/` segment. Nothing the project fetches is disallowed.
+
+| Claim in README / `bodies.yaml` | What the capture shows on 2026-10-28 |
 |---|---|
 | OParl 1.0 | `System.oparlVersion = https://schema.oparl.org/1.0/`, `otherOparlVersions = []`. Confirmed. |
 | 26 bodies | `list/body` returned 26 bodies on one page (`totalPages: 1`). Confirmed. |
 | `Body.license` null | Corrected: the `license` key is **absent** on all 26 bodies (not served as `null`). The adapter reads both as "no licence". |
 | Pagination is `links.next` | `links.next` is an absolute URL (`...?id=<n>`), `pagination` carries `elementsPerPage` and `totalPages`. Confirmed. |
-| `modified_since` honoured | Observed 2026-10-28 on `body/1/list/paper`, first page (items on page 1 / `totalPages`): no filter 100 / 15; `2020-01-01` 100 / 8; `2026-01-01` 80 / 1; `2026-06-01` 45 / 1. The filter is honoured and narrows the result set. **What the committed capture holds:** the unfiltered row and two other cut-offs, `2016-01-01` (`totalPages` 9) and `2025-01-01` (`totalPages` 3), with the filter carried forward in `links.next` and no sentinel-dated paper on either filtered first page. The `2020-01-01`, `2026-01-01` and `2026-06-01` rows were supplied as the same-day observation; their raw responses are **not** in `docs/evidence/`. A figure from the original 2026-10-27 probe was withdrawn: its raw response was not saved and it could not be reproduced. |
+| `modified_since` honoured | Observed on `body/1/list/paper`, first page (items on page 1 / `totalPages`): no filter 100 / 15; `2016-01-01` 100 / 9; `2020-01-01` 100 / 8; `2025-01-01` 100 / 3; `2026-01-01` 80 / 1; `2026-06-01` 45 / 1. The filter is honoured and narrows the result set. All six rows are in `muenchen-transparent_modified_since_probe.json`, which holds counts and pagination metadata, not the raw responses. A figure from the original 2026-10-27 probe was withdrawn: its raw response was not saved and it could not be reproduced. |
 | `-0001-11-30T00:00:00+00:53` sentinel | Present in `Paper.modified` **and** `Paper.created` on 96 of the first 100 papers of `body/1`. Confirmed, and it is the norm there rather than a rare edge case, which makes the date-provenance ladder more load-bearing than first claimed. |
 | `Paper.date` frequently null | Corrected: the `date` key is **absent** (not `null`) from all 100 papers on the captured page. The adapter treats absent and null alike. |
 | `Paper.location` absent | No `location` key on any of the 100 papers. Confirmed. |
 
-Two observations the earlier text did not record: only 1 of 26 bodies (the Stadtrat, `body/0`) declares an `ags`
-(`09162000`), so the other 25 can only ever reach geo tier 5; and the Stadtrat's advertised paper URL
-(`.../oparl/v1.0/list/paper`) returned HTTP 404 on 2026-10-28.
+Two further observations: only 1 of 26 bodies declares an `ags` (the capture records the count, not which body),
+so the other 25 can only ever reach geo tier 5; and body/0's advertised paper URL
+(`https://www.muenchen-transparent.de/oparl/v1.0/list/paper`) returned **HTTP 404** when requested once
+(`muenchen-transparent_access_rules.json`).
 
-How this file is produced: sections 1-7 came from `scripts/verify_source.sh` (it writes `SOURCE_VERIFICATION.md` next to itself, in `scripts/`). `make verify` / `iris-harvest verify-source` does **not** regenerate this committed file; by default it writes `reports/SOURCE_VERIFICATION.md`, which is git-ignored. This section 8 is maintained by hand from `docs/evidence/` and neither tool generates it.
+How this file is produced: sections 1-7 record the 2026-10-27 probe of the briefed host and were not
+regenerated by the current CLI. `make verify` / `iris-harvest verify-source` does **not** regenerate this
+committed file; by default it writes `reports/SOURCE_VERIFICATION.md`, which is git-ignored. This section 8 is
+maintained by hand from `docs/evidence/` and neither tool generates it.

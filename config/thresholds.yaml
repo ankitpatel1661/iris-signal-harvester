@@ -20,12 +20,16 @@
 #
 # Null-rate semantics: the fraction of STAGED records (those that reached the table)
 # whose field is NULL. A value of 1.0 means "no expectation"; 0.0 means "must never
-# be null". The numbers are not aspirations — they are calibrated to what German
-# municipal OParl data actually contains, as verified on 2026-10-27:
-# `Paper.date` is an ABSENT KEY (0 of 100 on body/1 page 1), `Paper` carries no
-# `location` at all, and `Body.license` is likewise absent on the bodies observed.
-# Absent and null are treated alike downstream; the wording matters only because
-# this file claims to be calibrated against what was actually verified.
+# be null".
+#
+# These numbers are HAND-SET, not calibrated. No measurement of real data derived any of
+# them, and no labelled evaluation set exists to tune them against. What the one live
+# capture (2026-10-28, docs/evidence/) does show is where they will bite: `Paper.date`
+# is an ABSENT KEY (0 of 100 on body/1 page 1), `Paper` carries no `location` at all,
+# and `Body.license` is absent on all 26 bodies. Absent and null are treated alike
+# downstream. Against an endpoint like that, `published_at` and `geom` would sit near
+# 100% null and the run would WARN, which is the intended, visible outcome rather than
+# a defect in the limits.
 
 version: "2026.1"
 
@@ -37,12 +41,15 @@ null_rate_max:
   # --- the signal itself: a staged record always carries a matched type ---
   signal_type: 0.0
   relevance_score: 0.0
-  # --- dates: the ladder genuinely fails on real OParl data -------------------
-  # Paper.date is null on most real papers; the HTTP header tier rescues some.
-  # Above 65% unknown the source is not usable for time-series work and we say so.
+  # --- dates: the ladder can fail outright on real OParl data -----------------
+  # On the 2026-10-28 capture Paper.date is an absent key on every paper. The HTTP-header
+  # tier cannot rescue it: no shipped adapter populates http_last_modified, so a record
+  # without a payload date lands on tier 3 (a meeting date, if the payload carries one)
+  # or on 'unknown'. Hand-set: above 65% unknown the source is, by our judgement, not
+  # usable for time-series work, and we say so.
   published_at: 0.65
   # --- geography: Paper carries no location, so tiers 4-5 dominate ------------
-  # A null geom is honest (geo_method='unresolved'); it is not a defect.
+  # A null geom is honest (geo_method='unresolved'); it is not a defect. Hand-set.
   geom: 0.95
   ags: 0.30
   municipality_name: 0.30

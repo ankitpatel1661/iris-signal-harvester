@@ -1,19 +1,15 @@
-# IRIS source and body registry.
+# IRIS source registry.
 #
-# Two things live here, and the difference matters:
+# This file is the `sources` registry: the endpoints this harvester may be pointed at,
+# each carrying its verification date, its licence state and its health state. It is
+# the machine-readable counterpart of SOURCE_VERIFICATION.md.
 #
-#   * `sources` — the endpoints this harvester may be pointed at, each carrying its
-#     verification date, its licence state and its health state. This is the
-#     machine-readable counterpart of SOURCE_VERIFICATION.md.
-#   * `bodies` — informational only. Councils registered explicitly (here: the two
-#     fixture councils). NOTHING READS THIS SECTION: it does not select which bodies
-#     are harvested, and `default_source` is validated but does not choose the source
-#     either (`IRIS_SOURCE` does). `SourceRegistry.bodies_for` exists as a seam for a
-#     future allow-list; the harvest path never calls it (only a unit test does). Body selection today is the
-#     repeatable `--body` flag on `iris-harvest harvest`; with no flag every body the
-#     source's System object lists is swept. OParl bodies are DISCOVERED at runtime,
-#     so the live endpoint lists none here: writing 26 body ids we have not probed
-#     individually would be a guess, and this project does not guess.
+# It does NOT select bodies. OParl bodies are DISCOVERED at runtime from the source's
+# System object, so none are listed here: writing 26 body ids we have not probed
+# individually would be a guess, and this project does not guess. Body selection is
+# the repeatable `--body` flag on `iris-harvest harvest`; with no flag every body the
+# source lists is swept. `default_source` is validated but does not choose the source
+# either (`IRIS_SOURCE` does).
 #
 # `licence` is never inferred. A source whose bodies declare no `Body.license` (on the
 # live endpoint the key is ABSENT on all 26 bodies, not null) is recorded as
@@ -59,8 +55,10 @@ sources:
       2026-10-28, docs/evidence/). Recorded as undeclared; never inferred from a
       sibling body and never assumed to be open.
     robots: >-
-      No Disallow applying to this user-agent was observed at probe time. robots.txt
-      is re-fetched and honoured at runtime (settings.respect_robots).
+      robots.txt answered HTTP 200 with `User-agent: *`, `Disallow: /*/dav/` and a
+      Sitemap line (docs/evidence/muenchen-transparent_access_rules.json). That rule does
+      not cover any OParl path this project reads, so nothing we fetch is disallowed.
+      robots.txt is re-fetched and honoured at runtime (settings.respect_robots).
     description: >-
       The primary live source. OParl is the open standard through which German
       council information systems actually publish, which is what makes coverage
@@ -79,7 +77,10 @@ sources:
         the corrupt sentinel "-0001-11-30T00:00:00+00:53" in created AND modified on
         96 of 100 papers of body/1 page 1; the norm there, not an edge case
       paper_location: absent — geo tiers 4 and 5 dominate on this source
-      body_ags: declared by 1 of 26 bodies (the Stadtrat); its advertised paper URL answered HTTP 404 (one request, 2026-10-28)
+      body_ags: declared by 1 of 26 bodies (the capture records the count, not which body)
+      body_0_paper_url: >-
+        body/0's advertised paper URL (.../oparl/v1.0/list/paper) answered HTTP 404 on one
+        request, 2026-10-28 (docs/evidence/muenchen-transparent_access_rules.json)
 
   ratsdokumente:
     adapter: ratsdokumente
@@ -95,33 +96,3 @@ sources:
       enabled unchanged if such a source is ever stood up. It is not presented as
       verified against a live endpoint.
     evidence: SOURCE_VERIFICATION.md
-
-# Explicitly registered councils (informational; see the note at the top of this file).
-# `ags` is the 8-digit Amtlicher Gemeindeschlüssel and is what the geo tier-4
-# municipality-centroid fallback resolves against; a body without one can only ever
-# reach tier 5 (unresolved), which the report states rather than hiding. At harvest
-# time the AGS comes from the discovered `Body.ags`, not from this list.
-bodies:
-  - source: fixture
-    id: https://oparl.example.org/oparl/v1.0/body/1
-    name: Musterstadt
-    ags: "09162000"
-    ars: "091620000000"
-    licence: https://creativecommons.org/licenses/by/4.0/
-    health: verified_offline
-    paper_endpoint: https://oparl.example.org/oparl/v1.0/body/1/list/paper
-    note: >-
-      Placeholder council. The AGS is the real München code so the committed
-      gazetteer entry (and therefore the containment check) is exercised honestly.
-
-  - source: fixture
-    id: https://oparl.example.org/oparl/v1.0/body/2
-    name: Beispielstadt
-    ags: "11000000"
-    ars: "110000000000"
-    licence: undeclared
-    health: verified_offline
-    paper_endpoint: https://oparl.example.org/oparl/v1.0/body/2/list/paper
-    note: >-
-      Deliberately carries Body.license = null, which is the common real-world case
-      and makes the undeclared-licence path part of the default demo.

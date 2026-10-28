@@ -52,6 +52,7 @@ __all__ = [
     "SourceCoordinates",
     "parse_parcel_reference",
     "reproject_to_25832",
+    "reproject_wgs84_to_25832",
 ]
 
 TARGET_CRS = "EPSG:25832"
@@ -76,11 +77,19 @@ class ParcelRef:
 
 @dataclass(frozen=True)
 class SourceCoordinates:
-    """Coordinates as supplied by the source. The CRS is mandatory: never assumed."""
+    """Coordinates as supplied by the source. The CRS is mandatory: never assumed.
+
+    ``geographic`` marks a WGS84 longitude/latitude pair (``x`` = longitude, ``y`` =
+    latitude), which is what an OParl ``Location.geojson`` Point carries. Axis order
+    is fixed by that flag, so there is no EPSG:4326 lat/lon ambiguity; a projected
+    ``{x, y, crs}`` pair never sets it, and an ``EPSG:4326`` string there is still
+    refused as an unsupported CRS.
+    """
 
     x: float
     y: float
     crs: str
+    geographic: bool = False
 
 
 @dataclass(frozen=True)
@@ -164,6 +173,39 @@ def reproject_to_25832(x: float, y: float, crs: str) -> tuple[float, float]:
     return (float(nx), float(ny))
 
 
+def reproject_wgs84_to_25832(lon: float, lat: float) -> tuple[float, float]:
+    """Reproject a WGS84 longitude/latitude point (GeoJSON order) to EPSG:25832.
+
+    The projected-field heuristics of :func:`reproject_to_25832` do not apply here,
+    because a lon/lat pair is the *correct* shape for this input. What is checked
+    instead: both ordinates finite (``GEO_NON_FINITE``), inside the WGS84 domain
+    (``GEO_OUT_OF_CRS_DOMAIN``), and a finite projected result
+    (``GEO_REPROJECTION_FAILED``). The result then goes through the same
+    :func:`validate_25832` checks as every other point, so a ``(0, 0)`` placeholder or
+    a swapped latitude/longitude lands far outside the national envelope and is
+    rejected there rather than being accepted.
+    """
+    check_finite(lon, lat)
+    if not (-180.0 <= lon <= 180.0 and -90.0 <= lat <= 90.0):
+        raise RecordRejected(
+            RejectCode.GEO_OUT_OF_CRS_DOMAIN,
+            f"(lon={lon}, lat={lat}) is outside the WGS84 domain "
+            "(longitude -180..180, latitude -90..90)",
+        )
+    try:
+        nx, ny = _transformer(4326).transform(lon, lat)
+    except ProjError as exc:
+        raise RecordRejected(
+            RejectCode.GEO_REPROJECTION_FAILED, f"reprojection from WGS84 failed: {exc}"
+        ) from exc
+    if not (math.isfinite(nx) and math.isfinite(ny)):
+        raise RecordRejected(
+            RejectCode.GEO_REPROJECTION_FAILED,
+            f"reprojection of (lon={lon}, lat={lat}) from WGS84 produced a non-finite result",
+        )
+    return (float(nx), float(ny))
+
+
 class GeoResolver:
     """Runs the tier chain and returns a ``GeoResolution``."""
 
@@ -196,7 +238,7 @@ class GeoResolver:
         if candidates.coordinates is not None:
             c = candidates.coordinates
             try:
-                x, y = self._validated(c.x, c.y, c.crs, polygon)
+                x, y = self._validated(c.x, c.y, c.crs, polygon, geographic=c.geographic)
             except RecordRejected as exc:
                 if not degrade_on_reject:
                     raise
@@ -267,9 +309,15 @@ class GeoResolver:
         )
 
     def _validated(
-        self, x: float, y: float, crs: str, polygon: Polygon | None
+        self,
+        x: float,
+        y: float,
+        crs: str,
+        polygon: Polygon | None,
+        *,
+        geographic: bool = False,
     ) -> tuple[float, float]:
-        rx, ry = reproject_to_25832(x, y, crs)
+        rx, ry = reproject_wgs84_to_25832(x, y) if geographic else reproject_to_25832(x, y, crs)
         return validate_25832(
             rx, ry, country=GERMANY_ENVELOPE, municipality=polygon, tol_m=self._tol
         )

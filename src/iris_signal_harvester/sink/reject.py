@@ -6,8 +6,8 @@ constraint mirrors the enum so free text cannot be stored.
 
 A rejection is identified by ``(source_system, source_body_id, source_record_id,
 reason_code, payload_hash)``. The incremental overlap window re-fetches a bad record
-on every run, so inserting blindly would store the same rejection once per run
-(final-review I-10). Instead a repeat sighting advances ``last_seen_at`` and
+on every run, so inserting blindly would store the same rejection once per run.
+Instead a repeat sighting advances ``last_seen_at`` and
 ``seen_count`` on the existing row (``migrations/002_reject_dedup.sql``). The row keeps
 the id of the run that first rejected it; a changed payload or a changed reason is a
 new rejection.

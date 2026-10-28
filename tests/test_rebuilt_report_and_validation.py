@@ -1,6 +1,6 @@
 """``iris-harvest report`` / ``validate`` against a real database.
 
-Covers final-review I-5 (a rebuilt report regraded a failed run as PASS and graded an
+Covers two defects found in review: a rebuilt report regraded a failed run as PASS, and graded an
 idempotent re-run on zero rows) and I-14 (validation that could pass vacuously, and
 queries that were guaranteed by the DDL). The database fixtures and signal builders are
 shared with ``test_sink.py``; the tests skip cleanly without ``IRIS_DB_DSN``.

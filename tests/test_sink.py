@@ -715,7 +715,7 @@ def test_end_to_end_sentinel_never_poisons_watermark(sink: PostgisSink, db_dsn: 
 
 
 # ---------------------------------------------------------------------------
-# values PostgreSQL cannot store: NaN and lone surrogates (final-review I-1)
+# values PostgreSQL cannot store: NaN and lone surrogates
 # ---------------------------------------------------------------------------
 
 # Parsed exactly as ``httpx.Response.json()`` parses a body, which is the realistic source.
@@ -848,7 +848,7 @@ def test_finish_run_notes_with_hostile_values_do_not_fail(sink: PostgisSink, db_
 
 
 # ---------------------------------------------------------------------------
-# the dead-letter table does not grow on every run (final-review I-10)
+# the dead-letter table does not grow on every run
 # ---------------------------------------------------------------------------
 
 

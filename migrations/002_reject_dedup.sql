@@ -1,6 +1,6 @@
 -- IRIS-SIG-23 — 002 de-duplicate the dead-letter table
 --
--- Problem (final-review I-10): the incremental overlap window re-fetches a bad record
+-- Problem: the incremental overlap window re-fetches a bad record
 -- on every run, so the same rejection was inserted once per run. Three runs over one bad
 -- record gave three identical rows, and the table grew without bound.
 --

@@ -1,4 +1,4 @@
-"""Redirect handling, probe ordering and config validation (review C-1, I-13, M-4, M-10)."""
+"""Redirect handling, probe ordering and config validation."""
 
 from __future__ import annotations
 

@@ -101,7 +101,6 @@ class Settings(BaseSettings):
         default=False,
         description="CI mode: any record-level rejection fails the run.",
     )
-    enable_llm_rerank: bool = False
     log_level: str = "INFO"
     report_dir: Path = Path("reports")
 

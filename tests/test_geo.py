@@ -17,6 +17,7 @@ from iris_signal_harvester.domain.geo.resolver import (
     SourceCoordinates,
     parse_parcel_reference,
     reproject_to_25832,
+    reproject_wgs84_to_25832,
 )
 from iris_signal_harvester.domain.geo.validate import (
     E_RANGE,
@@ -140,7 +141,7 @@ class TestValidate:
             validate_25832(x, y, tol_m=TOL)
         assert e.value.reason_code == RejectCode.GEO_OUT_OF_CRS_DOMAIN
 
-    # Real German places the previous outline falsely rejected (review finding I-9), plus
+    # Real German places the previous outline falsely rejected, plus
     # the extremities of the country. Each is a valid source coordinate: rejecting it
     # would dead-letter good data.
     @pytest.mark.parametrize(
@@ -310,6 +311,74 @@ class TestReprojection:
         with pytest.raises(RecordRejected) as e:
             reproject_to_25832(691_000.0, 5_334_000.0, crs)
         assert e.value.reason_code == RejectCode.GEO_REPROJECTION_FAILED
+
+
+class TestWgs84Reprojection:
+    """The OParl ``Location.geojson`` path: WGS84 lon/lat in, validated EPSG:25832 out."""
+
+    def test_matches_pyproj(self):
+        assert reproject_wgs84_to_25832(11.5756, 48.1372) == pytest.approx(MUNICH_XY, abs=1e-6)
+
+    def test_resolver_reprojects_and_validates_a_geographic_point(self, gazetteer: StaticGazetteer):
+        res = _resolver(gazetteer).resolve(
+            GeoCandidates(
+                coordinates=SourceCoordinates(11.5756, 48.1372, "EPSG:4326", geographic=True),
+                ags=MUNICH,
+            )
+        )
+        assert res.method is GeoMethod.SOURCE_COORDINATES
+        assert res.confidence is GeoConfidence.HIGH
+        assert res.source_crs == "EPSG:4326"
+        assert res.easting == pytest.approx(MUNICH_XY[0], abs=0.01)
+        assert res.northing == pytest.approx(MUNICH_XY[1], abs=0.01)
+
+    @pytest.mark.parametrize(
+        ("lon", "lat", "code"),
+        [
+            (math.nan, 48.1, RejectCode.GEO_NON_FINITE),
+            (11.5, math.inf, RejectCode.GEO_NON_FINITE),
+            (200.0, 48.1, RejectCode.GEO_OUT_OF_CRS_DOMAIN),
+            (11.5, 95.0, RejectCode.GEO_OUT_OF_CRS_DOMAIN),
+        ],
+    )
+    def test_invalid_wgs84_is_rejected(self, lon: float, lat: float, code: RejectCode):
+        with pytest.raises(RecordRejected) as e:
+            reproject_wgs84_to_25832(lon, lat)
+        assert e.value.reason_code == code
+
+    @pytest.mark.parametrize(
+        ("lon", "lat"),
+        [(0.0, 0.0), (48.1372, 11.5756), (-74.0, 40.7)],
+        ids=["null-island", "swapped-lat-lon", "new-york"],
+    )
+    def test_placeholder_swapped_or_foreign_points_are_rejected_not_accepted(
+        self, gazetteer: StaticGazetteer, lon: float, lat: float
+    ):
+        with pytest.raises(RecordRejected):
+            _resolver(gazetteer).resolve(
+                GeoCandidates(
+                    coordinates=SourceCoordinates(lon, lat, "EPSG:4326", geographic=True),
+                    ags=MUNICH,
+                )
+            )
+
+    def test_a_valid_german_point_outside_the_claimed_municipality_is_rejected(
+        self, gazetteer: StaticGazetteer
+    ):
+        with pytest.raises(RecordRejected) as e:
+            _resolver(gazetteer).resolve(
+                GeoCandidates(
+                    coordinates=SourceCoordinates(13.4050, 52.5200, "EPSG:4326", geographic=True),
+                    ags=MUNICH,
+                )
+            )
+        assert e.value.reason_code == RejectCode.GEO_OUTSIDE_CLAIMED_MUNICIPALITY
+
+    def test_a_projected_pair_still_may_not_claim_wgs84(self):
+        """The cassette ``{x, y, crs}`` shape is unchanged: EPSG:4326 there stays unsupported."""
+        with pytest.raises(RecordRejected) as e:
+            reproject_to_25832(11.5756, 48.1372, "EPSG:4326")
+        assert e.value.reason_code == RejectCode.GEO_LATLON_IN_PROJECTED_FIELD
 
 
 # --- resolver tiers -----------------------------------------------------------------

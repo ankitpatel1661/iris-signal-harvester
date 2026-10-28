@@ -9,7 +9,7 @@
 > exercised honestly. Municipality names in the extracts come from the gazetteer, not from any source. Do not
 > read anything here as a statement about what a real council decided, published or planned.
 
-These files close review finding C-3 (the brief asks for "sample anonymised output, validation queries, and a
+These files are the deliverable the brief asks for ("sample anonymised output, validation queries, and a
 concise error/quality report", and `reports/` is git-ignored). They are produced by actually running the pipeline
 against a PostGIS 16 / 3.4 container, not written by hand.
 

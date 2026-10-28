@@ -4,11 +4,11 @@
     "http_status": 200,
     "server_date": "Wed, 28 Oct 2026 08:57:18 GMT",
     "content_type": "application/json",
-    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:ops@example.org)",
+    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:[redacted])",
     "probed_on": "2026-10-28",
     "method": "GET (read-only, one request at a time, >=2 s apart)",
     "redactions": [
-      "only 20 of the 100 papers kept (the first 16 plus the papers on the page whose 'modified' is not the sentinel); titles truncated to 48 characters; originator*, underDirectionOf, auxiliaryFile and relatedPaper dropped; 'date' and 'location' are ABSENT KEYS in the served objects, not nulls"
+      "no paper records are kept: only key names with value types, and statistics computed over the 100 papers on the page. 'date' and 'location' are ABSENT KEYS in the served objects, not nulls. The operator contact address in the User-Agent is redacted; it is not the literal string sent."
     ]
   },
   "_statistics_over_full_page": {
@@ -50,7 +50,7 @@
   },
   "record_shape_only": {
     "_why": "The publisher's records are NOT redistributed. This endpoint declares no licence, and this project's own rule is that an undeclared licence is never assumed permissive. Every factual claim our documentation makes about this endpoint is evidenced by the aggregate counts above, not by record content. What is kept here is the SHAPE - key names and value types - because that is what the adapter was written against.",
-    "records_observed": 20,
+    "records_observed": 100,
     "example_shape": {
       "id": "<str>",
       "type": "https://schema.oparl.org/1.0/Paper",

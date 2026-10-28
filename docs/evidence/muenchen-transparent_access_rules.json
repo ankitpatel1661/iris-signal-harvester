@@ -1,0 +1,24 @@
+{
+  "_capture": {
+    "what": "Access rules and the one advertised endpoint that does not resolve. Captured because the documentation cites both, and a cited fact must be in evidence.",
+    "host": "https://www.muenchen-transparent.de",
+    "probed_on": "2026-10-28",
+    "probed_at_utc": "2026-10-28T13:35:15Z",
+    "method": "read-only GET, one request at a time, identifying User-Agent",
+    "user_agent_note": "Probes were made with an operator User-Agent carrying a real contact address, as robots etiquette expects. The address is redacted in these committed artefacts; it is not the literal string sent."
+  },
+  "robots_txt": {
+    "http_status": 200,
+    "directives": [
+      "User-agent: *",
+      "Disallow: /*/dav/",
+      "Sitemap: https://www.muenchen-transparent.de/sitemap-index.xml"
+    ]
+  },
+  "advertised_endpoint_that_404s": {
+    "body": "https://www.muenchen-transparent.de/oparl/v1.0/body/0",
+    "advertised_paper_url": "https://www.muenchen-transparent.de/oparl/v1.0/list/paper",
+    "http_status": 404,
+    "why_it_matters": "A body can advertise a collection URL that does not resolve. The harvester treats this as a per-body failure, not a run failure."
+  }
+}

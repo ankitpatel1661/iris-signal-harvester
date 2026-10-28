@@ -499,7 +499,7 @@ def test_an_absent_document_type_is_not_counted_as_unmapped() -> None:
 
 
 # ---------------------------------------------------------------------------
-# a report rebuilt from stored rows may not regrade the run (final-review I-5)
+# a report rebuilt from stored rows may not regrade the run
 # ---------------------------------------------------------------------------
 
 
@@ -657,7 +657,7 @@ def _observations_for_one() -> Observations:
 
 
 # ---------------------------------------------------------------------------
-# verification: redirects are reported, never followed (final-review F2)
+# verification: redirects are reported, never followed
 # ---------------------------------------------------------------------------
 
 

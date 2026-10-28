@@ -4,11 +4,12 @@
     "http_status": 200,
     "server_date": "Wed, 28 Oct 2026 08:56:43 GMT",
     "content_type": "application/json",
-    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:ops@example.org)",
+    "probed_by": "iris-harvester-feasibility-check/0.1 (+mailto:[redacted])",
     "probed_on": "2026-10-28",
     "method": "GET (read-only, one request at a time, >=2 s apart)",
     "redactions": [
-      "contactEmail replaced with [redacted]"
+      "contactEmail replaced with [redacted]",
+      "The operator contact address in the User-Agent is redacted; it is not the literal string sent."
     ]
   },
   "response": {
