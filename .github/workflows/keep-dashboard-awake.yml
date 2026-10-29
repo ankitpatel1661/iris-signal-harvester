@@ -1,34 +1,35 @@
 name: Keep dashboard awake
 
-# Streamlit Community Cloud puts an app to sleep after a stretch with no viewers, and a
-# sleeping app shows a "wake up" screen instead of the dashboard. Anyone following the link
-# from the submission would hit that screen first.
+# The public dashboard is linked from the submission, so it must not greet a reviewer with
+# a "wake up" screen.
 #
-# This pings the app on a schedule, which counts as traffic. A plain HTTP request is used
-# rather than periodic empty commits: commits would add noise to a deliberately short
-# history for no benefit, and a request also tells us whether the app is really serving.
+# A previous version of this workflow curl'd the app every six hours. It kept nothing awake,
+# and the evidence says why:
 #
-# WHICH URL, AND WHY IT MATTERS (measured 2026-10-28, not assumed):
-#   https://iris-signal-harvester.streamlit.app/            -> 303 to a share.streamlit.io
-#                                                              auth bounce. With `curl -L`
-#                                                              and no cookie jar this
-#                                                              redirects until curl gives up,
-#                                                              so a naive ping FAILS here.
-#   https://iris-signal-harvester.streamlit.app/~/+/        -> 200, serves the app shell.
-#   https://iris-signal-harvester.streamlit.app/healthz     -> 200 {"status":"ok"}
+#   * Streamlit Community Cloud counts *viewer sessions*. A session exists only once a client
+#     opens the websocket at /_stcore/stream and the server creates one for it. A plain HTTP
+#     GET fetches the page shell and never registers as a visitor.
+#   * While the app was asleep, curl of /~/+/ returned HTTP 502 - so the old workflow failed
+#     rather than waking anything (two of its last three scheduled runs failed).
+#   * /healthz answers 200 {"status":"ok"} even then, because the Cloud edge serves it rather
+#     than the app container. It is not a liveness signal for the app.
+#   * A hand-rolled websocket completes the handshake but receives no ForwardMsg, so no
+#     session is created. Reimplementing Streamlit's protocol would break on every change.
 #
-# So the app itself is fetched at /~/+/ (that is the request that wakes it), and /healthz is
-# used as a cheap liveness signal.
+# So this opens the app in a real headless browser. Whatever Streamlit counts as a viewer, a
+# browser is one. It also waits for text that only exists after the app has rendered, so a
+# green run means the dashboard really served - not merely that an edge returned 200.
 #
-# Two things worth knowing:
-#   * GitHub disables scheduled workflows after 60 days with no activity in the repository.
-#     If the dashboard starts sleeping again, check the Actions tab and re-enable it.
-#   * Scheduled runs are queued, not exact. Drift of a few minutes is normal and harmless.
+# Every two hours, because the app was observed asleep roughly eight hours after a visit.
+# GitHub Actions minutes are free and unlimited on public repositories, so this costs nothing.
+#
+# NOTE: GitHub disables scheduled workflows after 60 days with no repository activity. If the
+# dashboard starts sleeping again, re-enable this from the Actions tab.
 
 on:
   schedule:
-    - cron: "0 */6 * * *" # every six hours
-  workflow_dispatch: # and on demand, from the Actions tab
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -38,43 +39,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  ping:
+  visit:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
-    env:
-      APP_BASE: https://iris-signal-harvester.streamlit.app
+    timeout-minutes: 12
     steps:
-      - name: Report liveness
-        continue-on-error: true
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Playwright with Chromium
         run: |
-          set -uo pipefail
-          code=$(curl -sS --max-time 30 -o /tmp/health -w '%{http_code}' "$APP_BASE/healthz" || echo 000)
-          echo "healthz -> HTTP $code $(cat /tmp/health 2>/dev/null | head -c 60)"
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet playwright
+          python -m playwright install --with-deps chromium
 
-      - name: Wake the app
-        run: |
-          set -uo pipefail
-
-          # Deliberately no -L: the bare root redirects into an auth bounce that loops.
-          # /~/+/ is the app itself and answers 200 directly.
-          for attempt in 1 2 3 4 5; do
-            code=$(curl -sS --max-time 60 -o /tmp/body.html -w '%{http_code}' "$APP_BASE/~/+/" || echo 000)
-            echo "attempt $attempt -> HTTP $code ($(wc -c < /tmp/body.html 2>/dev/null || echo 0) bytes)"
-
-            if [ "$code" = "200" ]; then
-              # Streamlit serves a shell and fills it in over a websocket, so none of the
-              # dashboard's own text appears in this response. Confirming the shell is the
-              # most a single HTTP request can honestly verify.
-              if grep -qi "streamlit" /tmp/body.html; then
-                echo "::notice::Dashboard is awake and served the Streamlit shell."
-                exit 0
-              fi
-              echo "::warning::HTTP 200 but the body did not look like Streamlit; treating as awake."
-              exit 0
-            fi
-
-            sleep $((attempt * 15))
-          done
-
-          echo "::error::$APP_BASE/~/+/ did not return HTTP 200 after 5 attempts (last: $code)."
-          exit 1
+      - name: Open the dashboard and hold a session
+        run: python scripts/keep_awake.py --hold-seconds 45 --attempts 3 --verbose
